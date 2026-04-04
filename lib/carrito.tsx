@@ -12,6 +12,7 @@ export interface ItemCarrito {
   talla: string | null
   color: string | null
   cantidad: number
+  stock: number
 }
 
 interface CarritoContextType {
@@ -43,10 +44,12 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
       const existe = prev.find((i) => i.varianteId === item.varianteId)
       if (existe) {
         return prev.map((i) =>
-          i.varianteId === item.varianteId ? { ...i, cantidad: i.cantidad + cantidad } : i
+          i.varianteId === item.varianteId
+            ? { ...i, cantidad: Math.min(i.cantidad + cantidad, item.stock) }
+            : i
         )
       }
-      return [...prev, { ...item, cantidad }]
+      return [...prev, { ...item, cantidad: Math.min(cantidad, item.stock) }]
     })
   }
 

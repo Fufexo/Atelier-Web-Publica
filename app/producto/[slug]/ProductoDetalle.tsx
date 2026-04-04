@@ -73,6 +73,7 @@ export default function ProductoDetalle({ productoId, slug, nombre, descripcion,
       precio: precioOferta ?? precio,
       talla: tallaSel,
       color: colorSel,
+      stock,
     }, cantidad)
     setAgregado(true)
     setTimeout(() => setAgregado(false), 2000)

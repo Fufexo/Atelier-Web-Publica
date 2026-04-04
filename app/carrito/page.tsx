@@ -99,22 +99,30 @@ export default function CarritoPage() {
                     </div>
 
                     {/* Contador */}
-                    <div className="flex items-center border border-stone-200 w-fit mt-3">
-                      <button
-                        onClick={() => actualizarCantidad(item.varianteId, item.cantidad - 1)}
-                        className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
-                      >
-                        −
-                      </button>
-                      <span className="w-8 text-center text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>
-                        {item.cantidad}
-                      </span>
-                      <button
-                        onClick={() => actualizarCantidad(item.varianteId, item.cantidad + 1)}
-                        className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
-                      >
-                        +
-                      </button>
+                    <div className="mt-3">
+                      <div className="flex items-center border border-stone-200 w-fit">
+                        <button
+                          onClick={() => actualizarCantidad(item.varianteId, item.cantidad - 1)}
+                          className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>
+                          {item.cantidad}
+                        </span>
+                        <button
+                          onClick={() => actualizarCantidad(item.varianteId, Math.min(item.cantidad + 1, item.stock))}
+                          disabled={item.cantidad >= item.stock}
+                          className="w-8 h-8 flex items-center justify-center transition-colors text-lg disabled:text-stone-200 disabled:cursor-not-allowed text-stone-400 hover:text-stone-900"
+                        >
+                          +
+                        </button>
+                      </div>
+                      {item.cantidad >= item.stock && (
+                        <p className="text-xs text-amber-600 mt-1.5" style={{ fontFamily: 'var(--font-manrope)' }}>
+                          Máximo disponible: {item.stock}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
