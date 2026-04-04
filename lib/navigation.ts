@@ -10,4 +10,5 @@ export const NAV_AYUDA = [
   { href: '/devoluciones', label: 'Devoluciones' },
   { href: '/guia-de-tallas', label: 'Guía de tallas' },
   { href: '/contacto', label: 'Contacto' },
+  { href: '/nosotros', label: 'Nosotros' },
 ]

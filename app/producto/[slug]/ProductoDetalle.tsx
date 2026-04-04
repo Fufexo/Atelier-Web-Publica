@@ -9,13 +9,14 @@ interface Props {
   productoId: string
   slug: string
   nombre: string
+  descripcion: string | null
   precio: number
   precioOferta: number | null
   imagenes: ImagenProducto[]
   variantes: Variante[]
 }
 
-export default function ProductoDetalle({ productoId, slug, nombre, precio, precioOferta, imagenes, variantes }: Props) {
+export default function ProductoDetalle({ productoId, slug, nombre, descripcion, precio, precioOferta, imagenes, variantes }: Props) {
   const { agregar } = useCarrito()
 
   const activas = variantes.filter((v) => v.activa)
@@ -130,6 +131,17 @@ export default function ProductoDetalle({ productoId, slug, nombre, precio, prec
         </div>
 
         <div className="w-12 border-t border-stone-200" />
+
+        {/* Descripción */}
+        {descripcion && (
+          <div className="space-y-3">
+            {descripcion.split(/\n\s*\n/).map((parrafo, i) => (
+              <p key={i} className="text-sm text-stone-500 leading-relaxed" style={{ fontFamily: 'var(--font-manrope)' }}>
+                {parrafo.trim()}
+              </p>
+            ))}
+          </div>
+        )}
 
         {/* Color */}
         {colores.length > 0 && (

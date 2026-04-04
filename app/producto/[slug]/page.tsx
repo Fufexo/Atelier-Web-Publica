@@ -100,20 +100,12 @@ export default async function ProductoPage({ params }: Props) {
             productoId={prod.id}
             slug={prod.slug}
             nombre={prod.nombre}
+            descripcion={prod.descripcion ?? null}
             precio={prod.precio}
             precioOferta={prod.precio_oferta}
             imagenes={imagenes}
             variantes={variantes}
           />
-
-          {/* Descripción */}
-          {prod.descripcion && (
-            <div className="mt-12 pt-8 border-t border-stone-100 max-w-xl">
-              <p className="text-sm text-stone-500 leading-relaxed" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {prod.descripcion}
-              </p>
-            </div>
-          )}
         </div>
       </main>
       <Footer />
