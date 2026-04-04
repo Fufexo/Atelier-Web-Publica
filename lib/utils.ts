@@ -45,3 +45,21 @@ export const ESTADO_PEDIDO_COLORS: Record<string, string> = {
   cancelado: 'bg-red-100 text-red-800',
   reembolsado: 'bg-gray-100 text-gray-800',
 }
+
+export const ESTADO_PAGO_LABELS: Record<string, string> = {
+  pendiente:   'Pendiente',
+  completado:  'Completado',
+  fallido:     'Fallido',
+  reembolsado: 'Reembolsado',
+}
+
+export const ESTADO_PAGO_COLORS: Record<string, string> = {
+  pendiente:   'bg-yellow-100 text-yellow-800',
+  completado:  'bg-green-100 text-green-800',
+  fallido:     'bg-red-100 text-red-800',
+  reembolsado: 'bg-gray-100 text-gray-800',
+}
+
+export function calcularStockTotal(variantes: { stock: number }[] | undefined): number {
+  return variantes?.reduce((sum, v) => sum + v.stock, 0) ?? 0
+}

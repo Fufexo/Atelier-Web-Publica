@@ -6,9 +6,11 @@ import {
   formatearFecha,
   ESTADO_PEDIDO_COLORS,
   ESTADO_PEDIDO_LABELS,
+  ESTADO_PAGO_COLORS,
+  ESTADO_PAGO_LABELS,
 } from '@/lib/utils'
 import { actualizarEstadoPedido } from '../actions'
-import type { EstadoPedido, DireccionEnvio } from '@/lib/types'
+import type { EstadoPedido, DireccionEnvio, ItemPedido, Pago } from '@/lib/types'
 
 const ESTADOS_PEDIDO: EstadoPedido[] = [
   'pendiente', 'pagado', 'preparando', 'enviado', 'entregado', 'cancelado', 'reembolsado',
@@ -70,15 +72,7 @@ export default async function DetallePedidoPage({
               <h2 className="font-semibold text-gray-900">Productos</h2>
             </div>
             <ul className="divide-y divide-gray-100">
-              {items.map((item: {
-                id: string
-                nombre_producto: string
-                talla: string | null
-                color: string | null
-                cantidad: number
-                precio_unitario: number
-                subtotal: number
-              }) => (
+              {(items as ItemPedido[]).map((item) => (
                 <li key={item.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
                     <p className="font-medium text-gray-900 text-sm">{item.nombre_producto}</p>
@@ -119,25 +113,12 @@ export default async function DetallePedidoPage({
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="font-semibold text-gray-900">Pago</h2>
               </div>
-              {pagos.map((pago: {
-                id: string
-                estado: string
-                metodo: string | null
-                culqi_charge_id: string | null
-                monto: number
-                marca_tarjeta: string | null
-                ultimos_4_digitos: string | null
-                error_mensaje: string | null
-              }) => (
+              {(pagos as Pago[]).map((pago) => (
                 <div key={pago.id} className="px-6 py-4 text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Estado</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      pago.estado === 'completado' ? 'bg-green-100 text-green-800' :
-                      pago.estado === 'fallido' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {pago.estado}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ESTADO_PAGO_COLORS[pago.estado]}`}>
+                      {ESTADO_PAGO_LABELS[pago.estado]}
                     </span>
                   </div>
                   <div className="flex justify-between">

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import TablaProductos from './TablaProductos'
+import { calcularStockTotal } from '@/lib/utils'
 
 export const metadata = { title: 'Productos — Admin' }
 
@@ -12,10 +13,7 @@ export default async function ProductosPage() {
     .select('*, categorias(nombre), variantes(stock)')
     .order('created_at', { ascending: false })
 
-  const alertas = (productos ?? []).filter((p) => {
-    const stock = (p.variantes as { stock: number }[])?.reduce((s: number, v: { stock: number }) => s + v.stock, 0) ?? 0
-    return stock <= 5
-  })
+  const alertas = (productos ?? []).filter((p) => calcularStockTotal(p.variantes) <= 5)
 
   return (
     <div className="p-8">

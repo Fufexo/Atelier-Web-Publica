@@ -93,6 +93,9 @@ export interface Pago {
   created_at: string
 }
 
+// Para relaciones con count (ej: categorias con productos(count))
+export type ConCount = { count: number }[]
+
 export interface Pedido {
   id: string
   usuario_id: string | null

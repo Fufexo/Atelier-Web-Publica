@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { formatearPrecio } from '@/lib/utils'
+import { formatearPrecio, calcularStockTotal } from '@/lib/utils'
+import type { ImagenProducto } from '@/lib/types'
 import { toggleActivo, eliminarProducto, eliminarProductos } from './actions'
 import ConfirmDeleteButton from '@/components/admin/ConfirmDeleteButton'
 
@@ -14,7 +15,7 @@ interface Producto {
   precio_oferta: number | null
   activo: boolean
   destacado: boolean
-  imagenes: unknown
+  imagenes: ImagenProducto[]
   categorias: { nombre: string } | null
   variantes: { stock: number }[]
 }
@@ -97,8 +98,8 @@ export default function TablaProductos({ productos }: Props) {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {productos.map((producto) => {
-              const imagen = Array.isArray(producto.imagenes) ? producto.imagenes[0] : null
-              const stockTotal = producto.variantes?.reduce((sum, v) => sum + v.stock, 0) ?? 0
+              const imagen = producto.imagenes?.[0] ?? null
+              const stockTotal = calcularStockTotal(producto.variantes)
               const marcado = seleccionados.has(producto.id)
 
               return (
@@ -116,7 +117,7 @@ export default function TablaProductos({ productos }: Props) {
                       {imagen ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={(imagen as { url: string }).url}
+                          src={imagen.url}
                           alt={producto.nombre}
                           className="w-10 h-10 rounded-lg object-cover border border-gray-200"
                         />

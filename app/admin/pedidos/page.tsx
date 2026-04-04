@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { formatearPrecio, formatearFecha, ESTADO_PEDIDO_COLORS, ESTADO_PEDIDO_LABELS } from '@/lib/utils'
+import type { DireccionEnvio } from '@/lib/types'
 
 export const metadata = { title: 'Pedidos — Admin' }
 
@@ -67,10 +68,7 @@ export default async function PedidosPage({
             </thead>
             <tbody className="divide-y divide-gray-100">
               {pedidos.map((pedido) => {
-                const dir = pedido.direccion_envio as {
-                  distrito: string
-                  departamento: string
-                }
+                const dir = pedido.direccion_envio as DireccionEnvio
                 return (
                   <tr key={pedido.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium">#{pedido.numero}</td>

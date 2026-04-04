@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { crearCategoria, toggleCategoriaActiva, eliminarCategoria } from './actions'
 import ConfirmDeleteButton from '@/components/admin/ConfirmDeleteButton'
+import type { ConCount } from '@/lib/types'
 
 export const metadata = { title: 'Categorías — Admin' }
 
@@ -44,7 +45,7 @@ export default async function CategoriasPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 text-sm truncate">{cat.nombre}</p>
                   <p className="text-xs text-gray-400 truncate">
-                    /{cat.slug} · orden {cat.orden} · {(cat.productos as { count: number }[])?.[0]?.count ?? 0} productos
+                    /{cat.slug} · orden {cat.orden} · {(cat.productos as ConCount)?.[0]?.count ?? 0} productos
                   </p>
                 </div>
 
