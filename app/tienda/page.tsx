@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/store/Navbar'
 import Footer from '@/components/store/Footer'
@@ -11,6 +11,7 @@ interface SearchParams {
   genero?: string
   categoria?: string
   novedad?: string
+  oferta?: string
 }
 
 interface Props {
@@ -28,7 +29,7 @@ export async function generateMetadata({ searchParams }: Props) {
 }
 
 export default async function TiendaPage({ searchParams }: Props) {
-  const { genero, categoria, novedad } = await searchParams
+  const { genero, categoria, novedad, oferta } = await searchParams
   const supabase = await createClient()
 
   // Buscar categoria_id si hay filtro de categoría (evita filtrar por join)
@@ -54,6 +55,7 @@ export default async function TiendaPage({ searchParams }: Props) {
 
       if (genero) q = q.eq('genero', genero)
       if (novedad === 'true') q = q.eq('destacado', true)
+      if (oferta === 'true') q = q.not('precio_oferta', 'is', null)
       if (categoriaId) q = q.eq('categoria_id', categoriaId)
 
       return q
@@ -69,7 +71,9 @@ export default async function TiendaPage({ searchParams }: Props) {
       ? cats.find((c) => c.slug === categoria)?.nombre ?? 'Colección'
       : novedad === 'true'
         ? 'Novedades'
-        : 'Toda la colección'
+        : oferta === 'true'
+          ? 'Ofertas'
+          : 'Toda la colección'
 
   return (
     <>

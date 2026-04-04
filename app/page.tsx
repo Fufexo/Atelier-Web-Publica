@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/store/Navbar'
 import Footer from '@/components/store/Footer'

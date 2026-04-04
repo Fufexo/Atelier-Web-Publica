@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import { usePathname } from 'next/navigation'
 import { useCarrito } from '@/lib/carrito'
 
@@ -39,7 +39,7 @@ export default function Navbar() {
             return (
               <Link
                 key={link.href}
-                href={isHome && link.scrollId ? '#' : link.href}
+                href={isHome && link.scrollId ? '#' : link.scrollId ? `/#${link.scrollId}` : link.href}
                 onClick={handleClick}
                 className={`text-sm uppercase tracking-widest transition-colors ${
                   isActive

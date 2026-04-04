@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Script from 'next/script'
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import Navbar from '@/components/store/Navbar'
 import Footer from '@/components/store/Footer'
 import { useCarrito } from '@/lib/carrito'

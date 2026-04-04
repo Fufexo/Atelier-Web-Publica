@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 
 export default function Footer() {
   return (
@@ -19,10 +19,15 @@ export default function Footer() {
               Tienda
             </h4>
             <ul className="space-y-2 text-base" style={{ fontFamily: 'var(--font-manrope)' }}>
-              {['Mujer', 'Hombre', 'Novedades', 'Ofertas'].map((item) => (
-                <li key={item}>
-                  <Link href="/tienda" className="text-[#efe8dc] hover:text-white transition-colors">
-                    {item}
+              {[
+                { label: 'Mujer', href: '/tienda?genero=mujer' },
+                { label: 'Hombre', href: '/tienda?genero=hombre' },
+                { label: 'Novedades', href: '/tienda?novedad=true' },
+                { label: 'Ofertas', href: '/tienda?oferta=true' },
+              ].map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className="text-[#efe8dc] hover:text-white transition-colors">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -34,10 +39,15 @@ export default function Footer() {
               Ayuda
             </h4>
             <ul className="space-y-2 text-base" style={{ fontFamily: 'var(--font-manrope)' }}>
-              {['Envíos', 'Devoluciones', 'Guía de tallas', 'Contacto'].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-[#efe8dc] hover:text-white transition-colors">
-                    {item}
+              {[
+                { label: 'Envíos', href: '/envios' },
+                { label: 'Devoluciones', href: '/devoluciones' },
+                { label: 'Guía de tallas', href: '/guia-de-tallas' },
+                { label: 'Contacto', href: '/contacto' },
+              ].map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className="text-[#efe8dc] hover:text-white transition-colors">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -51,11 +61,11 @@ export default function Footer() {
             <p className="text-sm mb-4 text-[#d4c7b5]" style={{ fontFamily: 'var(--font-manrope)' }}>
               Sé el primero en conocer nuestras novedades.
             </p>
-            <form className="flex" action="#">
+            <form className="flex flex-col sm:flex-row gap-2 sm:gap-0" action="#">
               <input
                 type="email"
                 placeholder="tu@email.com"
-                className="flex-1 bg-transparent border border-[#4b453f] px-4 py-2.5 text-sm text-[#efe8dc] placeholder:text-[#867b6f] focus:outline-none focus:border-[#7f756a]"
+                className="w-full sm:flex-1 bg-transparent border border-[#4b453f] px-4 py-2.5 text-sm text-[#efe8dc] placeholder:text-[#867b6f] focus:outline-none focus:border-[#7f756a]"
                 style={{ fontFamily: 'var(--font-manrope)' }}
               />
               <button

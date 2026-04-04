@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from 'next-view-transitions'
 import { formatearPrecio } from '@/lib/utils'
 import type { Producto, ImagenProducto } from '@/lib/types'
 

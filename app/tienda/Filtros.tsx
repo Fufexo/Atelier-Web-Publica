@@ -1,6 +1,8 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useTransitionRouter } from 'next-view-transitions'
+import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import type { Categoria } from '@/lib/types'
 
 interface Props {
@@ -15,46 +17,61 @@ const GENEROS = [
 ]
 
 export default function Filtros({ categorias }: Props) {
-  const router = useRouter()
+  const router = useTransitionRouter()
   const params = useSearchParams()
 
   const generoActivo = params.get('genero') ?? ''
   const catActiva = params.get('categoria') ?? ''
   const novedadActiva = params.get('novedad') === 'true'
 
+  // Estado local para feedback inmediato
+  const [localGenero, setLocalGenero] = useState(generoActivo)
+  const [localCat, setLocalCat] = useState(catActiva)
+  const [localNovedad, setLocalNovedad] = useState(novedadActiva)
+
+  useEffect(() => {
+    setLocalGenero(generoActivo)
+    setLocalCat(catActiva)
+    setLocalNovedad(novedadActiva)
+  }, [generoActivo, catActiva, novedadActiva])
+
   function navegar(key: string, value: string) {
     const next = new URLSearchParams(params.toString())
-    if (value) {
-      next.set(key, value)
-    } else {
-      next.delete(key)
-    }
-    // Novedades y categoría son mutuamente excluyentes
+    if (value) next.set(key, value)
+    else next.delete(key)
     if (key === 'novedad' && value) next.delete('categoria')
     if (key === 'categoria' && value) next.delete('novedad')
+
+    if (key === 'genero') setLocalGenero(value)
+    if (key === 'categoria') { setLocalCat(value); setLocalNovedad(false) }
+    if (key === 'novedad') { setLocalNovedad(value === 'true'); setLocalCat('') }
+
     router.push(`/tienda?${next.toString()}`)
   }
 
   function limpiar() {
+    setLocalGenero('')
+    setLocalCat('')
+    setLocalNovedad(false)
     router.push('/tienda')
   }
 
-  const hayFiltros = generoActivo || catActiva || novedadActiva
+  const hayFiltros = localGenero || localCat || localNovedad
 
   return (
     <div className="border-b border-stone-200 bg-white">
       <div className="max-w-7xl mx-auto px-8 py-4 flex flex-wrap items-center gap-6">
 
         {/* Género */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           {GENEROS.map((g) => (
             <button
               key={g.value}
               onClick={() => navegar('genero', g.value)}
-              className={`text-xs uppercase tracking-widest px-4 py-2 transition-colors ${
-                generoActivo === g.value
+              className={`text-xs uppercase tracking-widest px-4 py-2 rounded-sm transition-colors duration-150 ${
+                localGenero === g.value
                   ? 'bg-stone-900 text-white'
-                  : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100'
+                  : 'text-stone-400 hover:text-stone-900'
               }`}
               style={{ fontFamily: 'var(--font-manrope)' }}
             >
@@ -63,19 +80,19 @@ export default function Filtros({ categorias }: Props) {
           ))}
         </div>
 
-        {/* Separador + Categorías (ocultos en modo Novedades) */}
-        {!novedadActiva && (
+        {/* Categorías */}
+        {!localNovedad && (
           <>
             <div className="w-px h-5 bg-stone-200" />
             <div className="flex items-center gap-2 flex-wrap">
               {categorias.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => navegar('categoria', catActiva === cat.slug ? '' : cat.slug)}
-                  className={`text-xs uppercase tracking-widest px-4 py-2 transition-colors ${
-                    catActiva === cat.slug
+                  onClick={() => navegar('categoria', localCat === cat.slug ? '' : cat.slug)}
+                  className={`text-xs uppercase tracking-widest px-4 py-2 rounded-sm transition-colors duration-150 ${
+                    localCat === cat.slug
                       ? 'bg-stone-900 text-white'
-                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100'
+                      : 'text-stone-400 hover:text-stone-900'
                   }`}
                   style={{ fontFamily: 'var(--font-manrope)' }}
                 >
@@ -88,11 +105,11 @@ export default function Filtros({ categorias }: Props) {
 
         {/* Novedad */}
         <button
-          onClick={() => navegar('novedad', novedadActiva ? '' : 'true')}
-          className={`text-xs uppercase tracking-widest px-4 py-2 transition-colors ${
-            novedadActiva
+          onClick={() => navegar('novedad', localNovedad ? '' : 'true')}
+          className={`text-xs uppercase tracking-widest px-4 py-2 rounded-sm transition-colors duration-150 ${
+            localNovedad
               ? 'bg-stone-900 text-white'
-              : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100'
+              : 'text-stone-400 hover:text-stone-900'
           }`}
           style={{ fontFamily: 'var(--font-manrope)' }}
         >
