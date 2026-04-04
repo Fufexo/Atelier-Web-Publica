@@ -1,7 +1,5 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 interface ItemEmail {
   nombre_producto: string
   talla: string | null
@@ -82,6 +80,7 @@ function baseLayout(contenido: string) {
 }
 
 export async function enviarConfirmacionPedido(pedido: PedidoEmail) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const dir = pedido.direccion
   const direccionCompleta = [
     dir.direccion,
@@ -151,6 +150,7 @@ export async function enviarConfirmacionPedido(pedido: PedidoEmail) {
 }
 
 export async function enviarNotificacionAdmin(pedido: PedidoEmail) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const html = baseLayout(`
     <h1 style="margin:0 0 8px;font-size:22px;color:#1c1917;font-weight:normal;">Nuevo pedido recibido</h1>
     <p style="margin:0 0 32px;font-size:14px;color:#a8a29e;letter-spacing:1px;">Pedido #${pedido.numero}</p>
