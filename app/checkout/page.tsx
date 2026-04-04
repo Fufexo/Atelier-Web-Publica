@@ -46,6 +46,10 @@ export default function CheckoutPage() {
     distrito: '',
     direccion: '',
     referencia: '',
+    tipoComprobante: 'boleta' as 'boleta' | 'factura',
+    dni: '',
+    ruc: '',
+    razonSocial: '',
   })
 
   const formRef = useRef(form)
@@ -54,7 +58,7 @@ export default function CheckoutPage() {
   const itemsRef = useRef(items)
   useEffect(() => { itemsRef.current = items }, [items])
 
-  // Registrar función global que Culqi llama al tokenizar
+  // Registrar función global que Culqi llama al tokenizar o cancelar
   useEffect(() => {
     window.culqi = async function () {
       if (window.Culqi.token) {
@@ -63,6 +67,9 @@ export default function CheckoutPage() {
         await procesarPago(token)
       } else if (window.Culqi.error) {
         setErrorPago(window.Culqi.error.user_message)
+        setCargando(false)
+      } else {
+        // Usuario cerró el modal sin pagar
         setCargando(false)
       }
     }
@@ -93,6 +100,10 @@ export default function CheckoutPage() {
           distrito: f.distrito,
           direccion: f.direccion,
           referencia: f.referencia,
+          tipoComprobante: f.tipoComprobante,
+          dni: f.tipoComprobante === 'boleta' ? f.dni : undefined,
+          ruc: f.tipoComprobante === 'factura' ? f.ruc : undefined,
+          razonSocial: f.tipoComprobante === 'factura' ? f.razonSocial : undefined,
           items: currentItems.map((i) => ({
             varianteId: i.varianteId,
             productoId: i.productoId,
@@ -191,9 +202,7 @@ export default function CheckoutPage() {
 
                   {/* Contacto */}
                   <section>
-                    <h2 className="text-xs uppercase tracking-widest text-stone-400 mb-5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                      Información de contacto
-                    </h2>
+                    <h2 className={sectionTitle}>Información de contacto</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="sm:col-span-2">
                         <label className={labelClass}>Nombre completo</label>
@@ -212,9 +221,7 @@ export default function CheckoutPage() {
 
                   {/* Dirección */}
                   <section>
-                    <h2 className="text-xs uppercase tracking-widest text-stone-400 mb-5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                      Dirección de envío
-                    </h2>
+                    <h2 className={sectionTitle}>Dirección de envío</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className={labelClass}>Departamento</label>
@@ -237,6 +244,53 @@ export default function CheckoutPage() {
                         <input value={form.referencia} onChange={campo('referencia')} className={inputClass} placeholder="Frente al parque, edificio beige" />
                       </div>
                     </div>
+                  </section>
+
+                  {/* Comprobante */}
+                  <section>
+                    <h2 className={sectionTitle}>Comprobante de pago</h2>
+                    <div className="flex gap-3 mb-5">
+                      {(['boleta', 'factura'] as const).map((tipo) => (
+                        <button
+                          key={tipo}
+                          type="button"
+                          onClick={() => setForm((p) => ({ ...p, tipoComprobante: tipo }))}
+                          className={`px-5 py-2.5 text-xs uppercase tracking-widest border transition-colors ${
+                            form.tipoComprobante === tipo
+                              ? 'border-stone-900 bg-stone-900 text-white'
+                              : 'border-stone-200 text-stone-500 hover:border-stone-400'
+                          }`}
+                          style={{ fontFamily: 'var(--font-manrope)' }}
+                        >
+                          {tipo === 'boleta' ? 'Boleta' : 'Factura'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {form.tipoComprobante === 'boleta' ? (
+                      <div>
+                        <label className={labelClass}>DNI <span className="text-stone-300">(opcional)</span></label>
+                        <input
+                          value={form.dni}
+                          onChange={campo('dni')}
+                          className={inputClass}
+                          placeholder="12345678"
+                          maxLength={8}
+                          style={{ maxWidth: '200px' }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>RUC</label>
+                          <input required value={form.ruc} onChange={campo('ruc')} className={inputClass} placeholder="20123456789" maxLength={11} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Razón social</label>
+                          <input required value={form.razonSocial} onChange={campo('razonSocial')} className={inputClass} placeholder="Empresa S.A.C." />
+                        </div>
+                      </div>
+                    )}
                   </section>
                 </div>
 
@@ -323,5 +377,6 @@ export default function CheckoutPage() {
   )
 }
 
+const sectionTitle = 'text-xs uppercase tracking-widest text-stone-400 mb-5'
 const labelClass = 'block text-xs uppercase tracking-widest text-stone-400 mb-1.5'
 const inputClass = 'w-full border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 placeholder:text-stone-300 focus:outline-none focus:border-stone-500 transition-colors'

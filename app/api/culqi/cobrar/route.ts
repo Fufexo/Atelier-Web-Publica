@@ -22,6 +22,10 @@ interface Body {
   distrito: string
   direccion: string
   referencia: string
+  tipoComprobante: 'boleta' | 'factura'
+  dni?: string
+  ruc?: string
+  razonSocial?: string
   items: ItemBody[]
   subtotal: number
   igv: number
@@ -33,6 +37,7 @@ export async function POST(req: NextRequest) {
   const {
     token, nombre, email, telefono,
     departamento, provincia, distrito, direccion, referencia,
+    tipoComprobante, dni, ruc, razonSocial,
     items, subtotal, igv, total,
   } = body
 
@@ -89,6 +94,9 @@ export async function POST(req: NextRequest) {
         distrito,
         direccion,
         referencia: referencia || undefined,
+        comprobante: tipoComprobante,
+        ...(tipoComprobante === 'boleta' && dni ? { dni } : {}),
+        ...(tipoComprobante === 'factura' ? { ruc, razon_social: razonSocial } : {}),
       },
       subtotal,
       igv,
