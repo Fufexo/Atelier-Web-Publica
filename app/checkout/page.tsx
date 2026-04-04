@@ -103,6 +103,8 @@ export default function CheckoutPage() {
   useEffect(() => { itemsRef.current = items }, [items])
 
   const pagoEnProcesoRef = useRef(false)
+  const envioRef = useRef(envio)
+  useEffect(() => { envioRef.current = envio }, [envio])
 
   // Al seleccionar distrito actualizar envío y datos de ciudad
   function seleccionarDistrito(value: string) {
@@ -172,7 +174,7 @@ export default function CheckoutPage() {
 
     const distritoFinal = f.distrito === 'provincia' ? f.ciudad : f.distrito
     const departamentoFinal = f.distrito === 'provincia' ? f.departamento : 'Lima'
-    const currentEnvio = envio ?? 0
+    const currentEnvio = envioRef.current ?? 0
     const totalFinal = currentTotal + currentEnvio
 
     try {

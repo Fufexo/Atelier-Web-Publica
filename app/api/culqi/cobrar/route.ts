@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     items: itemsEmail,
     subtotal,
     igv,
-    costo_envio: 0,
+    costo_envio: envio,
     total,
     direccion: { direccion, distrito, provincia, departamento, referencia: referencia || undefined },
   }
