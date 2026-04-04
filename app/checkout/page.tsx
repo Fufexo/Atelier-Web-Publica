@@ -41,9 +41,14 @@ function calcularEnvio(distrito: string, departamento: string): number | null {
   const dep = departamento.toLowerCase().trim()
   const dist = distrito.toLowerCase().trim()
   if (!dist && !dep) return null
-  if (dep && dep !== 'lima' && dep !== 'callao') return 25 // Provincias
-  if (!dist) return null
-  return ENVIO_LIMA[dist] ?? 20 // Lima desconocido → S/20
+  // Departamento fuera de Lima/Callao → provincias
+  if (dep && dep !== 'lima' && dep !== 'callao') return 25
+  // Distrito reconocido en la tabla → precio exacto
+  if (dist && ENVIO_LIMA[dist] !== undefined) return ENVIO_LIMA[dist]
+  // Departamento confirmado como Lima pero distrito no mapeado → S/20 (zona no listada)
+  if (dep === 'lima' || dep === 'callao') return 20
+  // No hay suficiente información para calcular
+  return null
 }
 
 // ── Tipos Google Places ───────────────────────────────────────────────────────
