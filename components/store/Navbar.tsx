@@ -9,6 +9,7 @@ const links = [
   { href: '/tienda?genero=hombre', label: 'Hombre' },
   { href: '/tienda?novedad=true', label: 'Novedades', scrollId: 'nuevos-ingresos' },
   { href: '/tienda', label: 'Colecciones' },
+  { href: '/nosotros', label: 'Nosotros' },
 ]
 
 export default function Navbar() {
