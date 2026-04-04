@@ -1,65 +1,116 @@
-import Image from "next/image";
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import Navbar from '@/components/store/Navbar'
+import Footer from '@/components/store/Footer'
+import ProductCarousel from '@/components/store/ProductCarousel'
+import type { Producto } from '@/lib/types'
 
-export default function Home() {
+const HERO_IMG = '/hero-fashion.jpg'
+
+const GENERO_CARDS = [
+  { label: 'Mujer', genero: 'mujer', img: '/mujer.jpg' },
+  { label: 'Hombre', genero: 'hombre', img: '/hombre.jpg' },
+]
+
+export default async function HomePage() {
+  const supabase = await createClient()
+
+  const [{ data: productos }, { data: destacados }] = await Promise.all([
+    supabase.from('productos').select('*, categorias(nombre)').eq('activo', true).order('orden', { ascending: true }).order('created_at', { ascending: false }).limit(12),
+    supabase.from('productos').select('*, categorias(nombre)').eq('activo', true).eq('destacado', true).order('orden', { ascending: true }).order('created_at', { ascending: false }).limit(12),
+  ])
+
+  const prods: Producto[] = productos ?? []
+  const idsDestacados = new Set((destacados ?? []).map(p => p.id))
+  const resto = prods.filter(p => !idsDestacados.has(p.id))
+  const propsDestacados: Producto[] = [...(destacados ?? []), ...resto]
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <>
+      <Navbar />
+      <main>
+        {/* ── Hero ── */}
+        <section className="relative min-h-[90vh] flex items-end overflow-hidden bg-stone-100">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={HERO_IMG} alt="Nueva Colección" className="absolute inset-0 w-full h-full object-cover object-top" />
+          <div className="absolute inset-0 bg-linear-to-t from-stone-900/55 via-stone-900/10 to-transparent" />
+          <div className="relative z-10 px-8 lg:px-16 pb-16 lg:pb-24">
+            <span className="text-xs uppercase tracking-widest text-white/60 mb-3 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+              Nueva Colección
+            </span>
+            <h1 className="text-5xl md:text-7xl lg:text-8xl text-white leading-[1.05] tracking-tight mb-8" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+              Otoño Invierno<br />2026
+            </h1>
+            <Link
+              href="/tienda"
+              className="inline-block bg-white text-stone-900 px-8 py-3 text-xs uppercase tracking-widest font-semibold hover:bg-stone-900 hover:text-white transition-all duration-300"
+              style={{ fontFamily: 'var(--font-manrope)' }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+              Ver Colección
+            </Link>
+          </div>
+        </section>
+
+        {/* ── Destacados ── */}
+        <section id="nuevos-ingresos" className="py-24 px-8 bg-[#f5f2ed]">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-end mb-12">
+              <div>
+                <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-2 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+                  Selección
+                </span>
+                <h2 className="text-3xl md:text-4xl text-stone-900 font-medium" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+                  Lo más nuevo
+                </h2>
+              </div>
+              <Link
+                href="/tienda"
+                className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-400 hover:border-stone-900 pb-0.5"
+                style={{ fontFamily: 'var(--font-manrope)' }}
+              >
+                Ver todo
+              </Link>
+            </div>
+
+            {propsDestacados.length === 0 ? (
+              <p className="text-center text-stone-400 py-20">Pronto habrá productos disponibles.</p>
+            ) : (
+              <ProductCarousel productos={propsDestacados} />
+            )}
+          </div>
+        </section>
+
+        {/* ── Mujer / Hombre ── */}
+        <section className="py-24 px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {GENERO_CARDS.map((card) => (
+                <Link
+                  key={card.genero}
+                  href={`/tienda?genero=${card.genero}`}
+                  className="group relative aspect-[4/3] overflow-hidden bg-stone-100"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={card.img}
+                    alt={card.label}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-stone-900/20 group-hover:bg-stone-900/40 transition-colors duration-500 flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/70 mb-2" style={{ fontFamily: 'var(--font-manrope)' }}>
+                      Colección Otoño
+                    </span>
+                    <h3 className="text-5xl text-white tracking-tight font-normal" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+                      {card.label}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
-    </div>
-  );
+      <Footer />
+    </>
+  )
 }
