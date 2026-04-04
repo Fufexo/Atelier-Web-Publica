@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/store/Navbar'
 import Footer from '@/components/store/Footer'
 import Filtros from './Filtros'
-import { formatearPrecio } from '@/lib/utils'
-import type { Producto, Categoria, ImagenProducto } from '@/lib/types'
+import ProductCard from '@/components/store/ProductCard'
+import type { Producto, Categoria } from '@/lib/types'
 
 interface SearchParams {
   genero?: string
@@ -114,98 +114,20 @@ export default async function TiendaPage({ searchParams }: Props) {
             </div>
           ) : (
             <>
-              {/* Mobile: carrusel 1 producto centrado con snap */}
+              {/* Mobile: carrusel */}
               <div className="md:hidden -mx-8 overflow-x-auto snap-x snap-mandatory flex pb-6" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {productos.map((prod) => {
-                  const imagen = (prod.imagenes as ImagenProducto[])?.[0]
-                  const precioMostrar = prod.precio_oferta ?? prod.precio
-                  const catNombre = (prod.categorias as { nombre: string } | null)?.nombre ?? ''
-                  return (
-                    <div key={prod.id} className="snap-center shrink-0 w-full px-8">
-                      <Link href={`/producto/${prod.slug}`} className="group block">
-                        <div className="relative aspect-3/4 bg-stone-200 overflow-hidden mb-3">
-                          {imagen ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={imagen.url}
-                              alt={imagen.alt || prod.nombre}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-stone-300">
-                              <span className="material-symbols-outlined text-6xl">deployed_code</span>
-                            </div>
-                          )}
-                          {prod.precio_oferta && (
-                            <span className="absolute top-3 left-3 bg-stone-900 text-white text-[10px] uppercase tracking-widest px-2 py-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                              Oferta
-                            </span>
-                          )}
-                        </div>
-                        {catNombre && (
-                          <p className="text-[11px] uppercase tracking-widest text-stone-400 mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                            {catNombre}
-                          </p>
-                        )}
-                        <h3 className="text-sm font-medium text-stone-900 mb-1 leading-5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          {prod.nombre}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-stone-600" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(precioMostrar)}</span>
-                          {prod.precio_oferta && (
-                            <span className="text-xs text-stone-400 line-through" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(prod.precio)}</span>
-                          )}
-                        </div>
-                      </Link>
-                    </div>
-                  )
-                })}
+                {productos.map((prod) => (
+                  <div key={prod.id} className="snap-center shrink-0 w-full px-8">
+                    <ProductCard prod={prod} hover={false} />
+                  </div>
+                ))}
               </div>
 
-              {/* Tablet+: grid normal */}
+              {/* Tablet+: grid */}
               <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-                {productos.map((prod) => {
-                  const imagen = (prod.imagenes as ImagenProducto[])?.[0]
-                  const precioMostrar = prod.precio_oferta ?? prod.precio
-                  const catNombre = (prod.categorias as { nombre: string } | null)?.nombre ?? ''
-                  return (
-                    <Link key={prod.id} href={`/producto/${prod.slug}`} className="group">
-                      <div className="relative aspect-3/4 bg-stone-200 overflow-hidden mb-4">
-                        {imagen ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={imagen.url}
-                            alt={imagen.alt || prod.nombre}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-stone-300">
-                            <span className="material-symbols-outlined text-6xl">deployed_code</span>
-                          </div>
-                        )}
-                        {prod.precio_oferta && (
-                          <span className="absolute top-3 left-3 bg-stone-900 text-white text-[10px] uppercase tracking-widest px-2 py-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                            Oferta
-                          </span>
-                        )}
-                      </div>
-                      {catNombre && (
-                        <p className="text-[11px] uppercase tracking-widest text-stone-400 mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          {catNombre}
-                        </p>
-                      )}
-                      <h3 className="text-sm font-medium text-stone-900 mb-1 leading-5 group-hover:underline underline-offset-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                        {prod.nombre}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-stone-600" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(precioMostrar)}</span>
-                        {prod.precio_oferta && (
-                          <span className="text-xs text-stone-400 line-through" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(prod.precio)}</span>
-                        )}
-                      </div>
-                    </Link>
-                  )
-                })}
+                {productos.map((prod) => (
+                  <ProductCard key={prod.id} prod={prod} />
+                ))}
               </div>
             </>
           )}

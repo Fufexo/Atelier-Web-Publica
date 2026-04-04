@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Read(//c/Users/Usuario/Downloads/**)",
+      "Bash(unzip -o stitch.zip -d stitch_extracted)",
+      "Bash(ls:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(xargs wc:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}

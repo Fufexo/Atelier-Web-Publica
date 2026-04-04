@@ -1,4 +1,5 @@
 import { Link } from 'next-view-transitions'
+import { NAV_TIENDA, NAV_AYUDA } from '@/lib/navigation'
 
 export default function Footer() {
   return (
@@ -19,40 +20,20 @@ export default function Footer() {
 
           {/* Links en 2 columnas */}
           <div className="grid grid-cols-2 gap-6">
-            <div>
-              <h4 className="text-[10px] uppercase tracking-widest text-[#9b9083] mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
-                Tienda
-              </h4>
-              <ul className="space-y-2.5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {[
-                  { label: 'Mujer', href: '/tienda?genero=mujer' },
-                  { label: 'Hombre', href: '/tienda?genero=hombre' },
-                  { label: 'Novedades', href: '/tienda?novedad=true' },
-                  { label: 'Ofertas', href: '/tienda?oferta=true' },
-                ].map((item) => (
-                  <li key={item.label}>
-                    <Link href={item.href} className="text-sm text-[#efe8dc]">{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-[10px] uppercase tracking-widest text-[#9b9083] mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
-                Ayuda
-              </h4>
-              <ul className="space-y-2.5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {[
-                  { label: 'Envíos', href: '/envios' },
-                  { label: 'Devoluciones', href: '/devoluciones' },
-                  { label: 'Guía de tallas', href: '/guia-de-tallas' },
-                  { label: 'Contacto', href: '/contacto' },
-                ].map((item) => (
-                  <li key={item.label}>
-                    <Link href={item.href} className="text-sm text-[#efe8dc]">{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {[{ title: 'Tienda', items: NAV_TIENDA }, { title: 'Ayuda', items: NAV_AYUDA }].map(({ title, items }) => (
+              <div key={title}>
+                <h4 className="text-[10px] uppercase tracking-widest text-[#9b9083] mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
+                  {title}
+                </h4>
+                <ul className="space-y-2.5" style={{ fontFamily: 'var(--font-manrope)' }}>
+                  {items.map((item) => (
+                    <li key={item.label}>
+                      <Link href={item.href} className="text-sm text-[#efe8dc]">{item.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
 
         </div>
@@ -68,41 +49,20 @@ export default function Footer() {
             </p>
           </div>
 
-          <div>
-            <h4 className="text-xs uppercase tracking-widest text-[#9b9083] mb-4" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Tienda
-            </h4>
-            <ul className="space-y-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-              {[
-                { label: 'Mujer', href: '/tienda?genero=mujer' },
-                { label: 'Hombre', href: '/tienda?genero=hombre' },
-                { label: 'Novedades', href: '/tienda?novedad=true' },
-                { label: 'Ofertas', href: '/tienda?oferta=true' },
-              ].map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="text-[#efe8dc] hover:text-white transition-colors">{item.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xs uppercase tracking-widest text-[#9b9083] mb-4" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Ayuda
-            </h4>
-            <ul className="space-y-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-              {[
-                { label: 'Envíos', href: '/envios' },
-                { label: 'Devoluciones', href: '/devoluciones' },
-                { label: 'Guía de tallas', href: '/guia-de-tallas' },
-                { label: 'Contacto', href: '/contacto' },
-              ].map((item) => (
-                <li key={item.label}>
-                  <Link href={item.href} className="text-[#efe8dc] hover:text-white transition-colors">{item.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {[{ title: 'Tienda', items: NAV_TIENDA }, { title: 'Ayuda', items: NAV_AYUDA }].map(({ title, items }) => (
+            <div key={title}>
+              <h4 className="text-xs uppercase tracking-widest text-[#9b9083] mb-4" style={{ fontFamily: 'var(--font-manrope)' }}>
+                {title}
+              </h4>
+              <ul className="space-y-2" style={{ fontFamily: 'var(--font-manrope)' }}>
+                {items.map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-[#efe8dc] hover:text-white transition-colors">{item.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
         </div>
 
