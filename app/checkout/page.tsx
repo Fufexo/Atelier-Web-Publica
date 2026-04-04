@@ -11,6 +11,51 @@ import { formatearPrecio } from '@/lib/utils'
 
 const IGV = 0.18
 
+// ── Tabla de envío por distrito de Lima ──────────────────────────────────────
+const ENVIO_LIMA: Record<string, number> = {
+  // S/10 — Centro / Moderno
+  'miraflores': 10, 'san isidro': 10, 'barranco': 10, 'surquillo': 10,
+  'san borja': 10, 'jesús maría': 10, 'jesus maria': 10, 'lince': 10,
+  'magdalena del mar': 10, 'pueblo libre': 10, 'san miguel': 10,
+  'breña': 10, 'brena': 10, 'lima': 10, 'cercado de lima': 10,
+  // S/15 — Este / Sur próximo
+  'la molina': 15, 'santiago de surco': 15, 'surco': 15, 'ate': 15,
+  'san luis': 15, 'santa anita': 15, 'el agustino': 15, 'chorrillos': 15,
+  'la victoria': 15, 'rímac': 15, 'rimac': 15,
+  // S/20 — Norte / Sur lejano / Callao
+  'los olivos': 20, 'san martín de porres': 20, 'san martin de porres': 20,
+  'independencia': 20, 'comas': 20, 'carabayllo': 20, 'puente piedra': 20,
+  'san juan de lurigancho': 20, 'villa el salvador': 20,
+  'villa maría del triunfo': 20, 'villa maria del triunfo': 20,
+  'san juan de miraflores': 20, 'lurín': 20, 'lurin': 20,
+  'callao': 20, 'bellavista': 20, 'la perla': 20, 'la punta': 20,
+  'carmen de la legua reynoso': 20,
+  // S/25 — Periférico
+  'ventanilla': 25, 'mi perú': 25, 'mi peru': 25,
+  'pachacámac': 25, 'pachacamac': 25, 'cieneguilla': 25,
+  'chaclacayo': 25, 'lurigancho': 25, 'chosica': 25,
+  'ancón': 25, 'ancon': 25, 'santa rosa': 25,
+}
+
+function calcularEnvio(distrito: string, departamento: string): number | null {
+  const dep = departamento.toLowerCase().trim()
+  const dist = distrito.toLowerCase().trim()
+  if (!dist && !dep) return null
+  if (dep && dep !== 'lima' && dep !== 'callao') return 25 // Provincias
+  if (!dist) return null
+  return ENVIO_LIMA[dist] ?? 20 // Lima desconocido → S/20
+}
+
+// ── Tipos Google Places ───────────────────────────────────────────────────────
+type GPlace = {
+  address_components?: Array<{ long_name: string; short_name: string; types: string[] }>
+  formatted_address?: string
+}
+type GAutocomplete = {
+  addListener: (event: string, handler: () => void) => void
+  getPlace: () => GPlace
+}
+
 declare global {
   interface Window {
     Culqi: {
@@ -23,6 +68,9 @@ declare global {
       error?: { user_message: string }
     }
     culqi: () => void
+    google?: {
+      maps: { places: { Autocomplete: new (input: HTMLInputElement, opts?: object) => GAutocomplete } }
+    }
   }
 }
 
@@ -34,22 +82,16 @@ export default function CheckoutPage() {
   const igv = total - subtotal
 
   const [cargando, setCargando] = useState(false)
+  const [procesando, setProcesando] = useState(false)
   const [errorPago, setErrorPago] = useState<string | null>(null)
   const [scriptListo, setScriptListo] = useState(false)
+  const [googleListo, setGoogleListo] = useState(false)
+  const [envio, setEnvio] = useState<number | null>(null)
 
   const [form, setForm] = useState({
-    nombre: '',
-    email: '',
-    telefono: '',
-    departamento: '',
-    provincia: '',
-    distrito: '',
-    direccion: '',
-    referencia: '',
-    tipoComprobante: 'boleta' as 'boleta' | 'factura',
-    dni: '',
-    ruc: '',
-    razonSocial: '',
+    nombre: '', email: '', telefono: '',
+    departamento: '', provincia: '', distrito: '',
+    direccion: '', referencia: '',
   })
 
   const formRef = useRef(form)
@@ -58,18 +100,79 @@ export default function CheckoutPage() {
   const itemsRef = useRef(items)
   useEffect(() => { itemsRef.current = items }, [items])
 
-  // Registrar función global que Culqi llama al tokenizar o cancelar
+  const pagoEnProcesoRef = useRef(false)
+  const addressInputRef = useRef<HTMLInputElement>(null)
+
+  // Recalcular envío al cambiar distrito o departamento
+  useEffect(() => {
+    setEnvio(calcularEnvio(form.distrito, form.departamento))
+  }, [form.distrito, form.departamento])
+
+  // Inicializar Google Places Autocomplete
+  useEffect(() => {
+    if (!googleListo || !addressInputRef.current || !window.google?.maps?.places) return
+
+    const ac = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      componentRestrictions: { country: 'pe' },
+      fields: ['address_components', 'formatted_address'],
+      types: ['address'],
+    })
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace()
+      if (!place.address_components) return
+
+      let distrito = '', provincia = '', departamento = '', calle = '', numero = ''
+      for (const comp of place.address_components) {
+        const t = comp.types
+        if (t.includes('locality') || t.includes('sublocality_level_1')) distrito = comp.long_name
+        if (t.includes('administrative_area_level_2')) provincia = comp.long_name
+        if (t.includes('administrative_area_level_1')) departamento = comp.long_name
+        if (t.includes('route')) calle = comp.long_name
+        if (t.includes('street_number')) numero = comp.long_name
+      }
+
+      setForm(prev => ({
+        ...prev,
+        direccion: [calle, numero].filter(Boolean).join(' ') || prev.direccion,
+        distrito,
+        provincia,
+        departamento,
+      }))
+    })
+  }, [googleListo])
+
+  // Detectar cierre manual del modal Culqi (no llama window.culqi al cerrar con X)
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const frame = document.querySelector('iframe[name*="culqi"], iframe[src*="culqi"], #culqi-container, .culqi-container')
+      if (!frame && !pagoEnProcesoRef.current) setCargando(false)
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [])
+
+  // Fallback: habilitar botón si window.Culqi ya existe aunque onLoad no disparó
+  useEffect(() => {
+    if (scriptListo) return
+    const iv = setInterval(() => { if (window.Culqi) { setScriptListo(true); clearInterval(iv) } }, 300)
+    return () => clearInterval(iv)
+  }, [scriptListo])
+
+  // Callback global de Culqi
   useEffect(() => {
     window.culqi = async function () {
       if (window.Culqi.token) {
+        pagoEnProcesoRef.current = true
         const token = window.Culqi.token.id
         window.Culqi.close()
+        setProcesando(true)
         await procesarPago(token)
+        pagoEnProcesoRef.current = false
       } else if (window.Culqi.error) {
         setErrorPago(window.Culqi.error.user_message)
         setCargando(false)
       } else {
-        // Usuario cerró el modal sin pagar
         setCargando(false)
       }
     }
@@ -85,6 +188,8 @@ export default function CheckoutPage() {
     const currentTotal = currentItems.reduce((s, i) => s + i.precio * i.cantidad, 0)
     const currentSubtotal = currentTotal / (1 + IGV)
     const currentIgv = currentTotal - currentSubtotal
+    const currentEnvio = calcularEnvio(f.distrito, f.departamento) ?? 0
+    const totalFinal = currentTotal + currentEnvio
 
     try {
       const res = await fetch('/api/culqi/cobrar', {
@@ -92,38 +197,26 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
-          nombre: f.nombre,
-          email: f.email,
-          telefono: f.telefono,
-          departamento: f.departamento,
-          provincia: f.provincia,
-          distrito: f.distrito,
-          direccion: f.direccion,
-          referencia: f.referencia,
-          tipoComprobante: f.tipoComprobante,
-          dni: f.tipoComprobante === 'boleta' ? f.dni : undefined,
-          ruc: f.tipoComprobante === 'factura' ? f.ruc : undefined,
-          razonSocial: f.tipoComprobante === 'factura' ? f.razonSocial : undefined,
+          nombre: f.nombre, email: f.email, telefono: f.telefono,
+          departamento: f.departamento, provincia: f.provincia,
+          distrito: f.distrito, direccion: f.direccion, referencia: f.referencia,
           items: currentItems.map((i) => ({
-            varianteId: i.varianteId,
-            productoId: i.productoId,
-            nombre: i.nombre,
-            precio: i.precio,
-            cantidad: i.cantidad,
-            talla: i.talla,
-            color: i.color,
+            varianteId: i.varianteId, productoId: i.productoId,
+            nombre: i.nombre, precio: i.precio, cantidad: i.cantidad,
+            talla: i.talla, color: i.color,
           })),
           subtotal: currentSubtotal,
           igv: currentIgv,
-          total: currentTotal,
+          envio: currentEnvio,
+          total: totalFinal,
         }),
       })
 
       const data = await res.json()
-
       if (!res.ok) {
         setErrorPago(data.error ?? 'Error al procesar el pago')
         setCargando(false)
+        setProcesando(false)
         return
       }
 
@@ -132,18 +225,19 @@ export default function CheckoutPage() {
     } catch {
       setErrorPago('Error de conexión. Intenta de nuevo.')
       setCargando(false)
+      setProcesando(false)
     }
   }
 
   function abrirCulqi() {
     if (!scriptListo || !window.Culqi) return
-
+    const montoTotal = total + (envio ?? 0)
     window.Culqi.publicKey = process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY!
     window.Culqi.settings({
       title: 'ATELIER',
       currency: 'PEN',
       description: 'Compra en ATELIER',
-      amount: Math.round(total * 100),
+      amount: Math.round(montoTotal * 100),
     })
     window.Culqi.open()
   }
@@ -159,6 +253,8 @@ export default function CheckoutPage() {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }))
   }
+
+  const totalConEnvio = total + (envio ?? 0)
 
   if (items.length === 0) {
     return (
@@ -179,11 +275,29 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <Script
-        src="https://checkout.culqi.com/js/v4"
-        strategy="lazyOnload"
-        onLoad={() => setScriptListo(true)}
-      />
+      {/* Overlay: bloquea interacción mientras se confirma el pago */}
+      {procesando && (
+        <div className="fixed inset-0 z-[9999] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-6">
+          <div className="w-10 h-10 border-2 border-stone-200 border-t-stone-900 rounded-full animate-spin" />
+          <div className="text-center">
+            <p className="text-sm text-stone-900 font-medium mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
+              Confirmando tu pago
+            </p>
+            <p className="text-xs text-stone-400" style={{ fontFamily: 'var(--font-manrope)' }}>
+              No cierres esta ventana
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Script src="https://checkout.culqi.com/js/v4" strategy="afterInteractive" onLoad={() => setScriptListo(true)} />
+      {process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && (
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&libraries=places`}
+          strategy="afterInteractive"
+          onLoad={() => setGoogleListo(true)}
+        />
+      )}
 
       <div className="flex flex-col min-h-screen">
         <Navbar />
@@ -223,74 +337,42 @@ export default function CheckoutPage() {
                   <section>
                     <h2 className={sectionTitle}>Dirección de envío</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClass}>Departamento</label>
-                        <input required value={form.departamento} onChange={campo('departamento')} className={inputClass} placeholder="Lima" />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Provincia</label>
-                        <input required value={form.provincia} onChange={campo('provincia')} className={inputClass} placeholder="Lima" />
+                      <div className="sm:col-span-2">
+                        <label className={labelClass}>
+                          Dirección
+                          {googleListo && (
+                            <span className="text-stone-300 normal-case tracking-normal ml-1.5">— escribe para buscar</span>
+                          )}
+                        </label>
+                        <input
+                          ref={addressInputRef}
+                          required
+                          value={form.direccion}
+                          onChange={campo('direccion')}
+                          className={inputClass}
+                          placeholder="Av. Larco 345"
+                          autoComplete="off"
+                        />
                       </div>
                       <div>
                         <label className={labelClass}>Distrito</label>
                         <input required value={form.distrito} onChange={campo('distrito')} className={inputClass} placeholder="Miraflores" />
                       </div>
                       <div>
-                        <label className={labelClass}>Dirección</label>
-                        <input required value={form.direccion} onChange={campo('direccion')} className={inputClass} placeholder="Av. Larco 123, Dpto 4B" />
+                        <label className={labelClass}>Provincia</label>
+                        <input required value={form.provincia} onChange={campo('provincia')} className={inputClass} placeholder="Lima" />
                       </div>
-                      <div className="sm:col-span-2">
-                        <label className={labelClass}>Referencia <span className="text-stone-300">(opcional)</span></label>
+                      <div>
+                        <label className={labelClass}>Departamento</label>
+                        <input required value={form.departamento} onChange={campo('departamento')} className={inputClass} placeholder="Lima" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>
+                          Referencia <span className="text-stone-300">(opcional)</span>
+                        </label>
                         <input value={form.referencia} onChange={campo('referencia')} className={inputClass} placeholder="Frente al parque, edificio beige" />
                       </div>
                     </div>
-                  </section>
-
-                  {/* Comprobante */}
-                  <section>
-                    <h2 className={sectionTitle}>Comprobante de pago</h2>
-                    <div className="flex gap-3 mb-5">
-                      {(['boleta', 'factura'] as const).map((tipo) => (
-                        <button
-                          key={tipo}
-                          type="button"
-                          onClick={() => setForm((p) => ({ ...p, tipoComprobante: tipo }))}
-                          className={`px-5 py-2.5 text-xs uppercase tracking-widest border transition-colors ${
-                            form.tipoComprobante === tipo
-                              ? 'border-stone-900 bg-stone-900 text-white'
-                              : 'border-stone-200 text-stone-500 hover:border-stone-400'
-                          }`}
-                          style={{ fontFamily: 'var(--font-manrope)' }}
-                        >
-                          {tipo === 'boleta' ? 'Boleta' : 'Factura'}
-                        </button>
-                      ))}
-                    </div>
-
-                    {form.tipoComprobante === 'boleta' ? (
-                      <div>
-                        <label className={labelClass}>DNI <span className="text-stone-300">(opcional)</span></label>
-                        <input
-                          value={form.dni}
-                          onChange={campo('dni')}
-                          className={inputClass}
-                          placeholder="12345678"
-                          maxLength={8}
-                          style={{ maxWidth: '200px' }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelClass}>RUC</label>
-                          <input required value={form.ruc} onChange={campo('ruc')} className={inputClass} placeholder="20123456789" maxLength={11} />
-                        </div>
-                        <div>
-                          <label className={labelClass}>Razón social</label>
-                          <input required value={form.razonSocial} onChange={campo('razonSocial')} className={inputClass} placeholder="Empresa S.A.C." />
-                        </div>
-                      </div>
-                    )}
                   </section>
                 </div>
 
@@ -301,7 +383,6 @@ export default function CheckoutPage() {
                       Resumen
                     </h2>
 
-                    {/* Items */}
                     <div className="space-y-3 mb-6">
                       {items.map((item) => (
                         <div key={item.varianteId} className="flex justify-between text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>
@@ -327,14 +408,18 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex justify-between text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>
                         <span className="text-stone-500">Envío</span>
-                        <span className="text-stone-400">Por coordinar</span>
+                        {envio !== null ? (
+                          <span className="text-stone-900">{formatearPrecio(envio)}</span>
+                        ) : (
+                          <span className="text-stone-400 text-xs">Ingresa tu distrito</span>
+                        )}
                       </div>
                     </div>
 
                     <div className="border-t border-stone-200 pt-4 mb-6">
                       <div className="flex justify-between" style={{ fontFamily: 'var(--font-manrope)' }}>
                         <span className="font-medium text-stone-900">Total</span>
-                        <span className="font-medium text-stone-900 text-lg">{formatearPrecio(total)}</span>
+                        <span className="font-medium text-stone-900 text-lg">{formatearPrecio(totalConEnvio)}</span>
                       </div>
                     </div>
 

@@ -22,13 +22,10 @@ interface Body {
   distrito: string
   direccion: string
   referencia: string
-  tipoComprobante: 'boleta' | 'factura'
-  dni?: string
-  ruc?: string
-  razonSocial?: string
   items: ItemBody[]
   subtotal: number
   igv: number
+  envio: number
   total: number
 }
 
@@ -37,8 +34,7 @@ export async function POST(req: NextRequest) {
   const {
     token, nombre, email, telefono,
     departamento, provincia, distrito, direccion, referencia,
-    tipoComprobante, dni, ruc, razonSocial,
-    items, subtotal, igv, total,
+    items, subtotal, igv, envio, total,
   } = body
 
   // 1. Crear cargo en Culqi (monto en centavos)
@@ -94,13 +90,10 @@ export async function POST(req: NextRequest) {
         distrito,
         direccion,
         referencia: referencia || undefined,
-        comprobante: tipoComprobante,
-        ...(tipoComprobante === 'boleta' && dni ? { dni } : {}),
-        ...(tipoComprobante === 'factura' ? { ruc, razon_social: razonSocial } : {}),
       },
       subtotal,
       igv,
-      costo_envio: 0,
+      costo_envio: envio,
       total,
       estado: 'pagado',
     })
@@ -171,7 +164,7 @@ export async function POST(req: NextRequest) {
     igv,
     costo_envio: 0,
     total,
-    direccion: { direccion, distrito, provincia, departamento, referencia },
+    direccion: { direccion, distrito, provincia, departamento, referencia: referencia || undefined },
   }
 
   Promise.all([
