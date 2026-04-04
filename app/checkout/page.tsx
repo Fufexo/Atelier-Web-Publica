@@ -11,56 +11,55 @@ import { formatearPrecio } from '@/lib/utils'
 
 const IGV = 0.18
 
-// ── Tabla de envío por distrito de Lima ──────────────────────────────────────
-const ENVIO_LIMA: Record<string, number> = {
-  // S/10 — Centro / Moderno
-  'miraflores': 10, 'san isidro': 10, 'barranco': 10, 'surquillo': 10,
-  'san borja': 10, 'jesús maría': 10, 'jesus maria': 10, 'lince': 10,
-  'magdalena del mar': 10, 'pueblo libre': 10, 'san miguel': 10,
-  'breña': 10, 'brena': 10, 'lima': 10, 'cercado de lima': 10,
-  // S/15 — Este / Sur próximo
-  'la molina': 15, 'santiago de surco': 15, 'surco': 15, 'ate': 15,
-  'san luis': 15, 'santa anita': 15, 'el agustino': 15, 'chorrillos': 15,
-  'la victoria': 15, 'rímac': 15, 'rimac': 15,
-  // S/20 — Norte / Sur lejano / Callao
-  'los olivos': 20, 'san martín de porres': 20, 'san martin de porres': 20,
-  'independencia': 20, 'comas': 20, 'carabayllo': 20, 'puente piedra': 20,
-  'san juan de lurigancho': 20, 'villa el salvador': 20,
-  'villa maría del triunfo': 20, 'villa maria del triunfo': 20,
-  'san juan de miraflores': 20, 'lurín': 20, 'lurin': 20,
-  'callao': 20, 'bellavista': 20, 'la perla': 20, 'la punta': 20,
-  'carmen de la legua reynoso': 20,
-  // S/25 — Periférico
-  'ventanilla': 25, 'mi perú': 25, 'mi peru': 25,
-  'pachacámac': 25, 'pachacamac': 25, 'cieneguilla': 25,
-  'chaclacayo': 25, 'lurigancho': 25, 'chosica': 25,
-  'ancón': 25, 'ancon': 25, 'santa rosa': 25,
-}
+// ── Distritos de Lima con precio de envío ────────────────────────────────────
+const DISTRITOS_LIMA = [
+  { nombre: 'Ancón',                    precio: 25 },
+  { nombre: 'Ate',                       precio: 15 },
+  { nombre: 'Barranco',                  precio: 10 },
+  { nombre: 'Bellavista',               precio: 20 },
+  { nombre: 'Breña',                     precio: 10 },
+  { nombre: 'Carabayllo',               precio: 20 },
+  { nombre: 'Carmen de la Legua',       precio: 20 },
+  { nombre: 'Cercado de Lima',          precio: 10 },
+  { nombre: 'Chaclacayo',               precio: 25 },
+  { nombre: 'Chorrillos',               precio: 15 },
+  { nombre: 'Cieneguilla',              precio: 25 },
+  { nombre: 'Comas',                    precio: 20 },
+  { nombre: 'El Agustino',              precio: 15 },
+  { nombre: 'Independencia',            precio: 20 },
+  { nombre: 'Jesús María',              precio: 10 },
+  { nombre: 'La Molina',                precio: 15 },
+  { nombre: 'La Perla',                 precio: 20 },
+  { nombre: 'La Punta',                 precio: 20 },
+  { nombre: 'La Victoria',              precio: 15 },
+  { nombre: 'Lince',                    precio: 10 },
+  { nombre: 'Los Olivos',               precio: 20 },
+  { nombre: 'Lurigancho',               precio: 25 },
+  { nombre: 'Lurín',                    precio: 20 },
+  { nombre: 'Magdalena del Mar',        precio: 10 },
+  { nombre: 'Mi Perú',                  precio: 25 },
+  { nombre: 'Miraflores',               precio: 10 },
+  { nombre: 'Pachacámac',              precio: 25 },
+  { nombre: 'Pueblo Libre',             precio: 10 },
+  { nombre: 'Puente Piedra',            precio: 20 },
+  { nombre: 'Rímac',                    precio: 15 },
+  { nombre: 'San Borja',                precio: 10 },
+  { nombre: 'San Isidro',               precio: 10 },
+  { nombre: 'San Juan de Lurigancho',   precio: 20 },
+  { nombre: 'San Juan de Miraflores',   precio: 20 },
+  { nombre: 'San Luis',                 precio: 15 },
+  { nombre: 'San Martín de Porres',     precio: 20 },
+  { nombre: 'San Miguel',               precio: 10 },
+  { nombre: 'Santa Anita',              precio: 15 },
+  { nombre: 'Santa Rosa',               precio: 25 },
+  { nombre: 'Santiago de Surco',        precio: 15 },
+  { nombre: 'Surquillo',                precio: 10 },
+  { nombre: 'Ventanilla',               precio: 25 },
+  { nombre: 'Villa El Salvador',        precio: 20 },
+  { nombre: 'Villa María del Triunfo',  precio: 20 },
+]
 
-function calcularEnvio(distrito: string, departamento: string): number | null {
-  const dep = departamento.toLowerCase().trim()
-  const dist = distrito.toLowerCase().trim()
-  if (!dist && !dep) return null
-  // Departamento fuera de Lima/Callao → provincias
-  if (dep && dep !== 'lima' && dep !== 'callao') return 25
-  // Distrito reconocido en la tabla → precio exacto
-  if (dist && ENVIO_LIMA[dist] !== undefined) return ENVIO_LIMA[dist]
-  // Departamento confirmado como Lima pero distrito no mapeado → S/20 (zona no listada)
-  if (dep === 'lima' || dep === 'callao') return 20
-  // No hay suficiente información para calcular
-  return null
-}
-
-// ── Tipos Google Places ───────────────────────────────────────────────────────
-type GPlace = {
-  address_components?: Array<{ long_name: string; short_name: string; types: string[] }>
-  formatted_address?: string
-}
-type GAutocomplete = {
-  addListener: (event: string, handler: () => void) => void
-  getPlace: () => GPlace
-}
-
+// ── Tipos Culqi ───────────────────────────────────────────────────────────────
 declare global {
   interface Window {
     Culqi: {
@@ -73,9 +72,6 @@ declare global {
       error?: { user_message: string }
     }
     culqi: () => void
-    google?: {
-      maps: { places: { Autocomplete: new (input: HTMLInputElement, opts?: object) => GAutocomplete } }
-    }
   }
 }
 
@@ -90,13 +86,14 @@ export default function CheckoutPage() {
   const [procesando, setProcesando] = useState(false)
   const [errorPago, setErrorPago] = useState<string | null>(null)
   const [scriptListo, setScriptListo] = useState(false)
-  const [googleListo, setGoogleListo] = useState(false)
   const [envio, setEnvio] = useState<number | null>(null)
 
   const [form, setForm] = useState({
     nombre: '', email: '', telefono: '',
-    departamento: '', provincia: '', distrito: '',
     direccion: '', referencia: '',
+    distrito: '',       // nombre del distrito seleccionado o 'provincia'
+    ciudad: '',         // solo si distrito === 'provincia'
+    departamento: '',   // solo si distrito === 'provincia'
   })
 
   const formRef = useRef(form)
@@ -106,61 +103,40 @@ export default function CheckoutPage() {
   useEffect(() => { itemsRef.current = items }, [items])
 
   const pagoEnProcesoRef = useRef(false)
-  const addressInputRef = useRef<HTMLInputElement>(null)
 
-  // Recalcular envío al cambiar distrito o departamento
-  useEffect(() => {
-    setEnvio(calcularEnvio(form.distrito, form.departamento))
-  }, [form.distrito, form.departamento])
+  // Al seleccionar distrito actualizar envío y datos de ciudad
+  function seleccionarDistrito(value: string) {
+    if (value === 'provincia') {
+      setEnvio(25)
+      setForm(prev => ({ ...prev, distrito: 'provincia', ciudad: '', departamento: '' }))
+    } else if (value === '') {
+      setEnvio(null)
+      setForm(prev => ({ ...prev, distrito: '', ciudad: '', departamento: '' }))
+    } else {
+      const d = DISTRITOS_LIMA.find(d => d.nombre === value)
+      setEnvio(d?.precio ?? null)
+      setForm(prev => ({ ...prev, distrito: value, ciudad: '', departamento: 'Lima' }))
+    }
+  }
 
-  // Inicializar Google Places Autocomplete
-  useEffect(() => {
-    if (!googleListo || !addressInputRef.current || !window.google?.maps?.places) return
-
-    const ac = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      componentRestrictions: { country: 'pe' },
-      fields: ['address_components', 'formatted_address'],
-      types: ['address'],
-    })
-
-    ac.addListener('place_changed', () => {
-      const place = ac.getPlace()
-      if (!place.address_components) return
-
-      let distrito = '', provincia = '', departamento = '', calle = '', numero = ''
-      for (const comp of place.address_components) {
-        const t = comp.types
-        if (t.includes('locality') || t.includes('sublocality_level_1')) distrito = comp.long_name
-        if (t.includes('administrative_area_level_2')) provincia = comp.long_name
-        if (t.includes('administrative_area_level_1')) departamento = comp.long_name
-        if (t.includes('route')) calle = comp.long_name
-        if (t.includes('street_number')) numero = comp.long_name
-      }
-
-      setForm(prev => ({
-        ...prev,
-        direccion: [calle, numero].filter(Boolean).join(' ') || prev.direccion,
-        distrito,
-        provincia,
-        departamento,
-      }))
-    })
-  }, [googleListo])
-
-  // Detectar cierre manual del modal Culqi (no llama window.culqi al cerrar con X)
+  // Detectar cierre manual del modal Culqi
   useEffect(() => {
     const observer = new MutationObserver(() => {
-      const frame = document.querySelector('iframe[name*="culqi"], iframe[src*="culqi"], #culqi-container, .culqi-container')
+      const frame = document.querySelector(
+        'iframe[name*="culqi"], iframe[src*="culqi"], #culqi-container, .culqi-container'
+      )
       if (!frame && !pagoEnProcesoRef.current) setCargando(false)
     })
     observer.observe(document.body, { childList: true, subtree: true })
     return () => observer.disconnect()
   }, [])
 
-  // Fallback: habilitar botón si window.Culqi ya existe aunque onLoad no disparó
+  // Fallback: habilitar botón si window.Culqi existe aunque onLoad no disparó
   useEffect(() => {
     if (scriptListo) return
-    const iv = setInterval(() => { if (window.Culqi) { setScriptListo(true); clearInterval(iv) } }, 300)
+    const iv = setInterval(() => {
+      if (window.Culqi) { setScriptListo(true); clearInterval(iv) }
+    }, 300)
     return () => clearInterval(iv)
   }, [scriptListo])
 
@@ -193,7 +169,10 @@ export default function CheckoutPage() {
     const currentTotal = currentItems.reduce((s, i) => s + i.precio * i.cantidad, 0)
     const currentSubtotal = currentTotal / (1 + IGV)
     const currentIgv = currentTotal - currentSubtotal
-    const currentEnvio = calcularEnvio(f.distrito, f.departamento) ?? 0
+
+    const distritoFinal = f.distrito === 'provincia' ? f.ciudad : f.distrito
+    const departamentoFinal = f.distrito === 'provincia' ? f.departamento : 'Lima'
+    const currentEnvio = envio ?? 0
     const totalFinal = currentTotal + currentEnvio
 
     try {
@@ -203,8 +182,11 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           token,
           nombre: f.nombre, email: f.email, telefono: f.telefono,
-          departamento: f.departamento, provincia: f.provincia,
-          distrito: f.distrito, direccion: f.direccion, referencia: f.referencia,
+          departamento: departamentoFinal,
+          provincia: departamentoFinal,
+          distrito: distritoFinal,
+          direccion: f.direccion,
+          referencia: f.referencia,
           items: currentItems.map((i) => ({
             varianteId: i.varianteId, productoId: i.productoId,
             nombre: i.nombre, precio: i.precio, cantidad: i.cantidad,
@@ -236,13 +218,12 @@ export default function CheckoutPage() {
 
   function abrirCulqi() {
     if (!scriptListo || !window.Culqi) return
-    const montoTotal = total + (envio ?? 0)
     window.Culqi.publicKey = process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY!
     window.Culqi.settings({
       title: 'ATELIER',
       currency: 'PEN',
       description: 'Compra en ATELIER',
-      amount: Math.round(montoTotal * 100),
+      amount: Math.round((total + (envio ?? 0)) * 100),
     })
     window.Culqi.open()
   }
@@ -260,6 +241,7 @@ export default function CheckoutPage() {
   }
 
   const totalConEnvio = total + (envio ?? 0)
+  const esProvinca = form.distrito === 'provincia'
 
   if (items.length === 0) {
     return (
@@ -280,7 +262,6 @@ export default function CheckoutPage() {
 
   return (
     <>
-      {/* Overlay: bloquea interacción mientras se confirma el pago */}
       {procesando && (
         <div className="fixed inset-0 z-[9999] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-6">
           <div className="w-10 h-10 border-2 border-stone-200 border-t-stone-900 rounded-full animate-spin" />
@@ -296,13 +277,6 @@ export default function CheckoutPage() {
       )}
 
       <Script src="https://checkout.culqi.com/js/v4" strategy="afterInteractive" onLoad={() => setScriptListo(true)} />
-      {process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && (
-        <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&libraries=places`}
-          strategy="afterInteractive"
-          onLoad={() => setGoogleListo(true)}
-        />
-      )}
 
       <div className="flex flex-col min-h-screen">
         <Navbar />
@@ -342,36 +316,58 @@ export default function CheckoutPage() {
                   <section>
                     <h2 className={sectionTitle}>Dirección de envío</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                      {/* Distrito — dropdown */}
+                      <div className={esProvinca ? '' : 'sm:col-span-2'}>
+                        <label className={labelClass}>Distrito / Ciudad</label>
+                        <div className="relative">
+                          <select
+                            required
+                            value={form.distrito}
+                            onChange={(e) => seleccionarDistrito(e.target.value)}
+                            className={`${inputClass} appearance-none pr-10 cursor-pointer`}
+                            style={{ fontFamily: 'var(--font-manrope)' }}
+                          >
+                            <option value="">Selecciona tu distrito</option>
+                            <optgroup label="Lima Metropolitana">
+                              {DISTRITOS_LIMA.map((d) => (
+                                <option key={d.nombre} value={d.nombre}>
+                                  {d.nombre} — {formatearPrecio(d.precio)}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Fuera de Lima">
+                              <option value="provincia">Otra ciudad / Provincia — {formatearPrecio(25)}</option>
+                            </optgroup>
+                          </select>
+                          <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400 text-lg">
+                            expand_more
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Si es provincia: ciudad + departamento */}
+                      {esProvinca && (
+                        <>
+                          <div>
+                            <label className={labelClass}>Ciudad</label>
+                            <input required value={form.ciudad} onChange={campo('ciudad')} className={inputClass} placeholder="Arequipa" />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Departamento</label>
+                            <input required value={form.departamento} onChange={campo('departamento')} className={inputClass} placeholder="Arequipa" />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Dirección */}
                       <div className="sm:col-span-2">
-                        <label className={labelClass}>
-                          Dirección
-                          {googleListo && (
-                            <span className="text-stone-300 normal-case tracking-normal ml-1.5">— escribe para buscar</span>
-                          )}
-                        </label>
-                        <input
-                          ref={addressInputRef}
-                          required
-                          value={form.direccion}
-                          onChange={campo('direccion')}
-                          className={inputClass}
-                          placeholder="Av. Larco 345"
-                          autoComplete="off"
-                        />
+                        <label className={labelClass}>Dirección</label>
+                        <input required value={form.direccion} onChange={campo('direccion')} className={inputClass} placeholder="Av. Larco 345, Dpto 4B" />
                       </div>
-                      <div>
-                        <label className={labelClass}>Distrito</label>
-                        <input required value={form.distrito} onChange={campo('distrito')} className={inputClass} placeholder="Miraflores" />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Provincia</label>
-                        <input required value={form.provincia} onChange={campo('provincia')} className={inputClass} placeholder="Lima" />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Departamento</label>
-                        <input required value={form.departamento} onChange={campo('departamento')} className={inputClass} placeholder="Lima" />
-                      </div>
-                      <div>
+
+                      {/* Referencia */}
+                      <div className="sm:col-span-2">
                         <label className={labelClass}>
                           Referencia <span className="text-stone-300">(opcional)</span>
                         </label>
@@ -416,7 +412,7 @@ export default function CheckoutPage() {
                         {envio !== null ? (
                           <span className="text-stone-900">{formatearPrecio(envio)}</span>
                         ) : (
-                          <span className="text-stone-400 text-xs">Ingresa tu distrito</span>
+                          <span className="text-stone-400 text-xs">Selecciona tu distrito</span>
                         )}
                       </div>
                     </div>
