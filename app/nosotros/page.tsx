@@ -1,6 +1,7 @@
 import { Link } from 'next-view-transitions'
 import Navbar from '@/components/store/Navbar'
 import Footer from '@/components/store/Footer'
+import Reveal from '@/components/store/Reveal'
 
 export const metadata = {
   title: 'Nosotros — Atelier',
@@ -41,24 +42,28 @@ export default function NosotrosPage() {
           />
           <div className="absolute inset-0 bg-linear-to-t from-stone-900/60 via-stone-900/10 to-transparent" />
           <div className="absolute bottom-0 left-0 px-8 lg:px-16 pb-14 lg:pb-20">
-            <span className="text-xs uppercase tracking-[0.3em] text-white/50 mb-3 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Nuestra historia
-            </span>
-            <h1 className="text-5xl md:text-7xl text-white leading-[1.05] tracking-tight" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-              Moda que<br />dura lo que importa
-            </h1>
+            <Reveal delay={200}>
+              <span className="text-xs uppercase tracking-[0.3em] text-white/50 mb-3 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+                Nuestra historia
+              </span>
+              <h1 className="text-5xl md:text-7xl text-white leading-[1.05] tracking-tight" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+                Moda que<br />dura lo que importa
+              </h1>
+            </Reveal>
           </div>
         </section>
 
         {/* ── Manifiesto ── */}
         <section className="bg-white py-20 md:py-28 px-8">
           <div className="max-w-2xl mx-auto text-center">
-            <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-6 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-              ATELIER
-            </span>
-            <p className="text-2xl md:text-3xl text-stone-900 leading-relaxed font-light" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-              Creemos que vestirse bien no es cuestión de tendencias. Es saber quién eres y encontrar prendas que lo digan sin esfuerzo.
-            </p>
+            <Reveal>
+              <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-6 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+                ATELIER
+              </span>
+              <p className="text-2xl md:text-3xl text-stone-900 leading-relaxed font-light" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+                Creemos que vestirse bien no es cuestión de tendencias. Es saber quién eres y encontrar prendas que lo digan sin esfuerzo.
+              </p>
+            </Reveal>
           </div>
         </section>
 
@@ -66,17 +71,17 @@ export default function NosotrosPage() {
         <section className="bg-[#f5f2ed]">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2">
             {/* Imagen */}
-            <div className="aspect-[4/5] md:aspect-auto overflow-hidden">
+            <Reveal direction="left" className="aspect-[4/5] md:aspect-auto overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/mujer.jpg"
                 alt="Colección ATELIER"
                 className="w-full h-full object-cover"
               />
-            </div>
+            </Reveal>
             {/* Texto */}
             <div className="flex items-center px-8 py-16 md:px-16 lg:px-20">
-              <div className="max-w-md">
+              <Reveal direction="right" className="max-w-md">
                 <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-6 block" style={{ fontFamily: 'var(--font-manrope)' }}>
                   Origen
                 </span>
@@ -94,7 +99,7 @@ export default function NosotrosPage() {
                     Hoy cada colección sigue siendo pequeña, intencional y hecha para durar.
                   </p>
                 </div>
-              </div>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -102,12 +107,14 @@ export default function NosotrosPage() {
         {/* ── Pilares ── */}
         <section className="bg-white py-20 md:py-28 px-8">
           <div className="max-w-7xl mx-auto">
-            <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-16 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Lo que nos define
-            </span>
+            <Reveal>
+              <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-16 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+                Lo que nos define
+              </span>
+            </Reveal>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
-              {PILARES.map((pilar) => (
-                <div key={pilar.numero}>
+              {PILARES.map((pilar, i) => (
+                <Reveal key={pilar.numero} delay={i * 150}>
                   <p className="text-xs text-stone-300 mb-4 font-mono">{pilar.numero}</p>
                   <h3 className="text-xl text-stone-900 mb-4" style={{ fontFamily: 'var(--font-noto-serif)' }}>
                     {pilar.titulo}
@@ -116,7 +123,7 @@ export default function NosotrosPage() {
                   <p className="text-sm text-stone-500 leading-relaxed" style={{ fontFamily: 'var(--font-manrope)' }}>
                     {pilar.texto}
                   </p>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -127,7 +134,7 @@ export default function NosotrosPage() {
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2">
             {/* Texto */}
             <div className="flex items-center px-8 py-16 md:px-16 lg:px-20 order-2 md:order-1">
-              <div className="max-w-md">
+              <Reveal direction="left" className="max-w-md">
                 <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-6 block" style={{ fontFamily: 'var(--font-manrope)' }}>
                   Para todos
                 </span>
@@ -142,35 +149,37 @@ export default function NosotrosPage() {
                     Cada prenda está pensada para adaptarse a distintos cuerpos, ocasiones y actitudes. Elegante cuando lo necesitas, relajado cuando quieres.
                   </p>
                 </div>
-              </div>
+              </Reveal>
             </div>
             {/* Imagen */}
-            <div className="aspect-[4/5] md:aspect-auto overflow-hidden order-1 md:order-2">
+            <Reveal direction="right" className="aspect-[4/5] md:aspect-auto overflow-hidden order-1 md:order-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/hombre.jpg"
                 alt="Colección ATELIER Hombre"
                 className="w-full h-full object-cover"
               />
-            </div>
+            </Reveal>
           </div>
         </section>
 
         {/* ── CTA ── */}
         <section className="bg-stone-900 py-20 md:py-28 px-8 text-center">
-          <span className="text-xs uppercase tracking-[0.3em] text-white/40 mb-6 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-            Colección actual
-          </span>
-          <h2 className="text-3xl md:text-4xl text-white mb-10 font-light" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-            Descubre las piezas de esta temporada
-          </h2>
-          <Link
-            href="/tienda"
-            className="inline-block border border-white text-white px-10 py-4 text-xs uppercase tracking-widest hover:bg-white hover:text-stone-900 transition-all duration-300"
-            style={{ fontFamily: 'var(--font-manrope)' }}
-          >
-            Ver colección
-          </Link>
+          <Reveal>
+            <span className="text-xs uppercase tracking-[0.3em] text-white/40 mb-6 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+              Colección actual
+            </span>
+            <h2 className="text-3xl md:text-4xl text-white mb-10 font-light" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+              Descubre las piezas de esta temporada
+            </h2>
+            <Link
+              href="/tienda"
+              className="inline-block border border-white text-white px-10 py-4 text-xs uppercase tracking-widest hover:bg-white hover:text-stone-900 transition-all duration-300"
+              style={{ fontFamily: 'var(--font-manrope)' }}
+            >
+              Ver colección
+            </Link>
+          </Reveal>
         </section>
 
       </main>
