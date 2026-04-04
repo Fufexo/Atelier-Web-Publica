@@ -14,6 +14,16 @@ const ESTADOS_PEDIDO: EstadoPedido[] = [
   'pendiente', 'pagado', 'preparando', 'enviado', 'entregado', 'cancelado', 'reembolsado',
 ]
 
+const ESTADO_DOT: Record<string, string> = {
+  pendiente:    'bg-yellow-400',
+  pagado:       'bg-blue-400',
+  preparando:   'bg-purple-400',
+  enviado:      'bg-indigo-400',
+  entregado:    'bg-green-400',
+  cancelado:    'bg-red-400',
+  reembolsado:  'bg-gray-400',
+}
+
 export default async function DetallePedidoPage({
   params,
 }: {
@@ -191,13 +201,17 @@ export default async function DetallePedidoPage({
                   <button
                     type="submit"
                     disabled={pedido.estado === e}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${
                       pedido.estado === e
-                        ? 'bg-slate-900 text-white font-medium cursor-default'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        ? 'ring-2 ring-offset-1 ring-slate-400 bg-gray-50 font-semibold cursor-default'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                   >
+                    <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${ESTADO_DOT[e]}`} />
                     {ESTADO_PEDIDO_LABELS[e]}
+                    {pedido.estado === e && (
+                      <span className="ml-auto text-xs text-gray-400">actual</span>
+                    )}
                   </button>
                 </form>
               ))}
