@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { enviarConfirmacionPedido, enviarNotificacionAdmin } from '@/lib/email'
 
 interface ItemBody {
   varianteId: string
@@ -142,6 +143,33 @@ export async function POST(req: NextRequest) {
     marca_tarjeta: culqiData.source?.brand ?? null,
     respuesta_culqi: culqiData,
   })
+
+  // 6. Enviar emails (no bloqueante — un fallo de email no rompe la respuesta)
+  const itemsEmail = items.map((item) => ({
+    nombre_producto: item.nombre,
+    talla: item.talla,
+    color: item.color,
+    cantidad: item.cantidad,
+    precio_unitario: item.precio,
+    subtotal: item.precio * item.cantidad,
+  }))
+
+  const pedidoEmail = {
+    numero: pedido.numero,
+    nombre_comprador: nombre,
+    email_comprador: email,
+    items: itemsEmail,
+    subtotal,
+    igv,
+    costo_envio: 0,
+    total,
+    direccion: { direccion, distrito, provincia, departamento, referencia },
+  }
+
+  Promise.all([
+    enviarConfirmacionPedido(pedidoEmail),
+    enviarNotificacionAdmin(pedidoEmail),
+  ]).catch((err) => console.error('Error enviando emails:', err))
 
   return NextResponse.json({ numero: pedido.numero })
 }

@@ -12,8 +12,25 @@ export default async function ProductosPage() {
     .select('*, categorias(nombre), variantes(stock)')
     .order('created_at', { ascending: false })
 
+  const alertas = (productos ?? []).filter((p) => {
+    const stock = (p.variantes as { stock: number }[])?.reduce((s: number, v: { stock: number }) => s + v.stock, 0) ?? 0
+    return stock <= 5
+  })
+
   return (
     <div className="p-8">
+      {alertas.length > 0 && (
+        <div className="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          <svg className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <p className="text-sm text-amber-700">
+            <span className="font-semibold">{alertas.length} {alertas.length === 1 ? 'producto' : 'productos'} con stock bajo o agotado:</span>{' '}
+            {alertas.map((p) => p.nombre).join(', ')}
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
           Productos

@@ -55,10 +55,10 @@ export default function CarritoPage() {
             {/* Items */}
             <div className="lg:col-span-2 divide-y divide-stone-100">
               {items.map((item) => (
-                <div key={item.varianteId} className="flex gap-6 py-6">
+                <div key={item.varianteId} className="flex gap-4 py-6">
                   {/* Imagen */}
                   <Link href={`/producto/${item.slug}`} className="shrink-0">
-                    <div className="w-24 h-32 bg-stone-100 overflow-hidden">
+                    <div className="w-20 h-28 min-[400px]:w-24 min-[400px]:h-32 bg-stone-100 overflow-hidden">
                       {item.imagen ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.imagen} alt={item.nombre} className="w-full h-full object-cover" />
@@ -71,60 +71,50 @@ export default function CarritoPage() {
                   </Link>
 
                   {/* Info */}
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <Link href={`/producto/${item.slug}`}>
-                        <h3 className="text-sm font-medium text-stone-900 hover:underline underline-offset-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          {item.nombre}
-                        </h3>
-                      </Link>
-                      <div className="flex flex-col gap-0.5 mt-1">
-                        {item.talla && (
-                          <span className="text-xs text-stone-400" style={{ fontFamily: 'var(--font-manrope)' }}>
-                            Talla {item.talla}
-                          </span>
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
+                    {/* Nombre + X */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <Link href={`/producto/${item.slug}`}>
+                          <h3 className="text-sm font-medium text-stone-900 hover:underline underline-offset-2 leading-snug" style={{ fontFamily: 'var(--font-manrope)' }}>
+                            {item.nombre}
+                          </h3>
+                        </Link>
+                        {(item.talla || item.color) && (
+                          <p className="text-xs text-stone-400 mt-0.5" style={{ fontFamily: 'var(--font-manrope)' }}>
+                            {[item.talla ? `Talla ${item.talla}` : null, item.color].filter(Boolean).join(' · ')}
+                          </p>
                         )}
-                        {item.color && (
-                          <span className="text-xs text-stone-400" style={{ fontFamily: 'var(--font-manrope)' }}>
-                            {item.color}
-                          </span>
-                        )}
+                        <p className="text-sm text-stone-900 mt-2" style={{ fontFamily: 'var(--font-manrope)' }}>
+                          {formatearPrecio(item.precio * item.cantidad)}
+                        </p>
                       </div>
+                      <button
+                        onClick={() => quitar(item.varianteId)}
+                        className="shrink-0 text-stone-300 hover:text-red-400 transition-colors mt-0.5"
+                        aria-label="Eliminar"
+                      >
+                        <span className="material-symbols-outlined text-lg">close</span>
+                      </button>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
-                      {/* Cantidad */}
-                      <div className="flex items-center border border-stone-200">
-                        <button
-                          onClick={() => actualizarCantidad(item.varianteId, item.cantidad - 1)}
-                          className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
-                        >
-                          −
-                        </button>
-                        <span className="w-8 text-center text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          {item.cantidad}
-                        </span>
-                        <button
-                          onClick={() => actualizarCantidad(item.varianteId, item.cantidad + 1)}
-                          className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      {/* Precio y eliminar */}
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-stone-900" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          {formatearPrecio(item.precio * item.cantidad)}
-                        </span>
-                        <button
-                          onClick={() => quitar(item.varianteId)}
-                          className="text-stone-300 hover:text-red-400 transition-colors"
-                          aria-label="Eliminar"
-                        >
-                          <span className="material-symbols-outlined text-lg">close</span>
-                        </button>
-                      </div>
+                    {/* Contador */}
+                    <div className="flex items-center border border-stone-200 w-fit mt-3">
+                      <button
+                        onClick={() => actualizarCantidad(item.varianteId, item.cantidad - 1)}
+                        className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
+                      >
+                        −
+                      </button>
+                      <span className="w-8 text-center text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>
+                        {item.cantidad}
+                      </span>
+                      <button
+                        onClick={() => actualizarCantidad(item.varianteId, item.cantidad + 1)}
+                        className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors text-lg"
+                      >
+                        +
+                      </button>
                     </div>
                   </div>
                 </div>

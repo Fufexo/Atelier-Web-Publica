@@ -12,6 +12,7 @@ interface SearchParams {
   categoria?: string
   novedad?: string
   oferta?: string
+  q?: string
 }
 
 interface Props {
@@ -29,7 +30,7 @@ export async function generateMetadata({ searchParams }: Props) {
 }
 
 export default async function TiendaPage({ searchParams }: Props) {
-  const { genero, categoria, novedad, oferta } = await searchParams
+  const { genero, categoria, novedad, oferta, q: busqueda } = await searchParams
   const supabase = await createClient()
 
   // Buscar categoria_id si hay filtro de categoría (evita filtrar por join)
@@ -57,6 +58,7 @@ export default async function TiendaPage({ searchParams }: Props) {
       if (novedad === 'true') q = q.eq('destacado', true)
       if (oferta === 'true') q = q.not('precio_oferta', 'is', null)
       if (categoriaId) q = q.eq('categoria_id', categoriaId)
+      if (busqueda?.trim()) q = q.ilike('nombre', `%${busqueda.trim()}%`)
 
       return q
     })(),
@@ -65,15 +67,17 @@ export default async function TiendaPage({ searchParams }: Props) {
   const productos: Producto[] = rawProductos ?? []
   const cats: Categoria[] = categorias ?? []
 
-  const tituloSeccion = genero
-    ? genero.charAt(0).toUpperCase() + genero.slice(1)
-    : categoria
-      ? cats.find((c) => c.slug === categoria)?.nombre ?? 'Colección'
-      : novedad === 'true'
-        ? 'Novedades'
-        : oferta === 'true'
-          ? 'Ofertas'
-          : 'Toda la colección'
+  const tituloSeccion = busqueda?.trim()
+    ? `Resultados para "${busqueda.trim()}"`
+    : genero
+      ? genero.charAt(0).toUpperCase() + genero.slice(1)
+      : categoria
+        ? cats.find((c) => c.slug === categoria)?.nombre ?? 'Colección'
+        : novedad === 'true'
+          ? 'Novedades'
+          : oferta === 'true'
+            ? 'Ofertas'
+            : 'Toda la colección'
 
   return (
     <>
@@ -109,55 +113,101 @@ export default async function TiendaPage({ searchParams }: Props) {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-              {productos.map((prod) => {
-                const imagen = (prod.imagenes as ImagenProducto[])?.[0]
-                const precioMostrar = prod.precio_oferta ?? prod.precio
-                const catNombre = (prod.categorias as { nombre: string } | null)?.nombre ?? ''
-
-                return (
-                  <Link key={prod.id} href={`/producto/${prod.slug}`} className="group">
-                    <div className="relative aspect-3/4 bg-stone-200 overflow-hidden mb-4">
-                      {imagen ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={imagen.url}
-                          alt={imagen.alt || prod.nombre}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-stone-300">
-                          <span className="material-symbols-outlined text-6xl">deployed_code</span>
+            <>
+              {/* Mobile: carrusel 1 producto centrado con snap */}
+              <div className="md:hidden -mx-8 overflow-x-auto snap-x snap-mandatory flex pb-6" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {productos.map((prod) => {
+                  const imagen = (prod.imagenes as ImagenProducto[])?.[0]
+                  const precioMostrar = prod.precio_oferta ?? prod.precio
+                  const catNombre = (prod.categorias as { nombre: string } | null)?.nombre ?? ''
+                  return (
+                    <div key={prod.id} className="snap-center shrink-0 w-full px-8">
+                      <Link href={`/producto/${prod.slug}`} className="group block">
+                        <div className="relative aspect-3/4 bg-stone-200 overflow-hidden mb-3">
+                          {imagen ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={imagen.url}
+                              alt={imagen.alt || prod.nombre}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-stone-300">
+                              <span className="material-symbols-outlined text-6xl">deployed_code</span>
+                            </div>
+                          )}
+                          {prod.precio_oferta && (
+                            <span className="absolute top-3 left-3 bg-stone-900 text-white text-[10px] uppercase tracking-widest px-2 py-1" style={{ fontFamily: 'var(--font-manrope)' }}>
+                              Oferta
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {prod.precio_oferta && (
-                        <span className="absolute top-3 left-3 bg-stone-900 text-white text-[10px] uppercase tracking-widest px-2 py-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          Oferta
-                        </span>
-                      )}
+                        {catNombre && (
+                          <p className="text-[11px] uppercase tracking-widest text-stone-400 mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
+                            {catNombre}
+                          </p>
+                        )}
+                        <h3 className="text-sm font-medium text-stone-900 mb-1 leading-5" style={{ fontFamily: 'var(--font-manrope)' }}>
+                          {prod.nombre}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-stone-600" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(precioMostrar)}</span>
+                          {prod.precio_oferta && (
+                            <span className="text-xs text-stone-400 line-through" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(prod.precio)}</span>
+                          )}
+                        </div>
+                      </Link>
                     </div>
-                    {catNombre && (
-                      <p className="text-[11px] uppercase tracking-widest text-stone-400 mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                        {catNombre}
-                      </p>
-                    )}
-                    <h3 className="text-sm font-medium text-stone-900 mb-1 leading-5 group-hover:underline underline-offset-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                      {prod.nombre}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-stone-600" style={{ fontFamily: 'var(--font-manrope)' }}>
-                        {formatearPrecio(precioMostrar)}
-                      </span>
-                      {prod.precio_oferta && (
-                        <span className="text-xs text-stone-400 line-through" style={{ fontFamily: 'var(--font-manrope)' }}>
-                          {formatearPrecio(prod.precio)}
-                        </span>
+                  )
+                })}
+              </div>
+
+              {/* Tablet+: grid normal */}
+              <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+                {productos.map((prod) => {
+                  const imagen = (prod.imagenes as ImagenProducto[])?.[0]
+                  const precioMostrar = prod.precio_oferta ?? prod.precio
+                  const catNombre = (prod.categorias as { nombre: string } | null)?.nombre ?? ''
+                  return (
+                    <Link key={prod.id} href={`/producto/${prod.slug}`} className="group">
+                      <div className="relative aspect-3/4 bg-stone-200 overflow-hidden mb-4">
+                        {imagen ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={imagen.url}
+                            alt={imagen.alt || prod.nombre}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-stone-300">
+                            <span className="material-symbols-outlined text-6xl">deployed_code</span>
+                          </div>
+                        )}
+                        {prod.precio_oferta && (
+                          <span className="absolute top-3 left-3 bg-stone-900 text-white text-[10px] uppercase tracking-widest px-2 py-1" style={{ fontFamily: 'var(--font-manrope)' }}>
+                            Oferta
+                          </span>
+                        )}
+                      </div>
+                      {catNombre && (
+                        <p className="text-[11px] uppercase tracking-widest text-stone-400 mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
+                          {catNombre}
+                        </p>
                       )}
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
+                      <h3 className="text-sm font-medium text-stone-900 mb-1 leading-5 group-hover:underline underline-offset-2" style={{ fontFamily: 'var(--font-manrope)' }}>
+                        {prod.nombre}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-stone-600" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(precioMostrar)}</span>
+                        {prod.precio_oferta && (
+                          <span className="text-xs text-stone-400 line-through" style={{ fontFamily: 'var(--font-manrope)' }}>{formatearPrecio(prod.precio)}</span>
+                        )}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </>
           )}
         </div>
       </main>

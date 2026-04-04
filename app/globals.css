@@ -19,6 +19,15 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ── Scrollbar oculta (carrusel mobile) ── */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── View Transitions ── */
 ::view-transition-old(root) {
   animation: 180ms ease both vt-fade-out;

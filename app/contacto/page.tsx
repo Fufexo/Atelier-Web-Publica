@@ -48,20 +48,23 @@ export default function ContactoPage() {
                 href={canal.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-5 p-5 border border-stone-200 hover:border-stone-400 transition-colors group"
+                className="flex items-center gap-4 p-5 border border-stone-200 hover:border-stone-400 transition-colors group"
               >
-                <span className="material-symbols-outlined text-stone-300 group-hover:text-stone-600 transition-colors text-2xl">
+                <span className="material-symbols-outlined text-stone-300 group-hover:text-stone-600 transition-colors text-2xl shrink-0">
                   {canal.icon}
                 </span>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-stone-900" style={{ fontFamily: 'var(--font-manrope)' }}>
                     {canal.titulo}
                   </p>
                   <p className="text-xs text-stone-400 mt-0.5" style={{ fontFamily: 'var(--font-manrope)' }}>
                     {canal.descripcion}
                   </p>
+                  <p className="text-xs text-stone-500 group-hover:text-stone-900 transition-colors mt-1.5 min-[420px]:hidden" style={{ fontFamily: 'var(--font-manrope)' }}>
+                    {canal.accion}
+                  </p>
                 </div>
-                <span className="text-sm text-stone-500 group-hover:text-stone-900 transition-colors" style={{ fontFamily: 'var(--font-manrope)' }}>
+                <span className="hidden min-[420px]:block text-sm text-stone-500 group-hover:text-stone-900 transition-colors shrink-0" style={{ fontFamily: 'var(--font-manrope)' }}>
                   {canal.accion}
                 </span>
               </a>

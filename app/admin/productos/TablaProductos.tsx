@@ -150,8 +150,16 @@ export default function TablaProductos({ productos }: Props) {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={stockTotal === 0 ? 'text-red-600 font-medium' : 'text-gray-700'}>
+                    <span className={
+                      stockTotal === 0
+                        ? 'text-red-600 font-medium'
+                        : stockTotal <= 5
+                          ? 'text-amber-600 font-medium'
+                          : 'text-gray-700'
+                    }>
                       {stockTotal} uds.
+                      {stockTotal === 0 && <span className="ml-1.5 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Sin stock</span>}
+                      {stockTotal > 0 && stockTotal <= 5 && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">Stock bajo</span>}
                     </span>
                   </td>
                   <td className="px-6 py-4">

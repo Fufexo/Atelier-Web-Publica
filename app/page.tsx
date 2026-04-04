@@ -54,22 +54,41 @@ export default async function HomePage() {
         {/* ── Destacados ── */}
         <section id="nuevos-ingresos" className="py-24 px-8 bg-[#f5f2ed]">
           <div className="max-w-7xl mx-auto">
-            <div className="flex justify-between items-end mb-12">
-              <div>
+            <div className="mb-8 md:mb-12">
+              {/* Desktop: título y "Ver todo" en la misma fila */}
+              <div className="hidden md:flex justify-between items-end">
+                <div>
+                  <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-2 block" style={{ fontFamily: 'var(--font-manrope)' }}>
+                    Selección
+                  </span>
+                  <h2 className="text-3xl md:text-4xl text-stone-900 font-medium" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+                    Lo más nuevo
+                  </h2>
+                </div>
+                <Link
+                  href="/tienda"
+                  className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-400 hover:border-stone-900 pb-0.5"
+                  style={{ fontFamily: 'var(--font-manrope)' }}
+                >
+                  Ver todo
+                </Link>
+              </div>
+              {/* Mobile: título arriba, "Ver todo" debajo */}
+              <div className="md:hidden">
                 <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-2 block" style={{ fontFamily: 'var(--font-manrope)' }}>
                   Selección
                 </span>
-                <h2 className="text-3xl md:text-4xl text-stone-900 font-medium" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+                <h2 className="text-3xl text-stone-900 font-medium mb-3" style={{ fontFamily: 'var(--font-noto-serif)' }}>
                   Lo más nuevo
                 </h2>
+                <Link
+                  href="/tienda"
+                  className="text-xs uppercase tracking-widest text-stone-500 border-b border-stone-400 pb-0.5"
+                  style={{ fontFamily: 'var(--font-manrope)' }}
+                >
+                  Ver todo
+                </Link>
               </div>
-              <Link
-                href="/tienda"
-                className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-400 hover:border-stone-900 pb-0.5"
-                style={{ fontFamily: 'var(--font-manrope)' }}
-              >
-                Ver todo
-              </Link>
             </div>
 
             {propsDestacados.length === 0 ? (

@@ -14,9 +14,33 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
   const supabase = await createClient()
-  const { data } = await supabase.from('productos').select('nombre, descripcion').eq('slug', slug).single()
+  const { data } = await supabase
+    .from('productos')
+    .select('nombre, descripcion, precio, precio_oferta, imagenes')
+    .eq('slug', slug)
+    .single()
   if (!data) return { title: 'Producto no encontrado' }
-  return { title: `${data.nombre} — Atelier`, description: data.descripcion ?? undefined }
+
+  const imagen = (data.imagenes as ImagenProducto[])?.[0]
+  const precio = data.precio_oferta ?? data.precio
+  const descripcion = data.descripcion ?? `Compra ${data.nombre} en ATELIER. Envíos a todo el Perú.`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+
+  return {
+    title: data.nombre,
+    description: descripcion,
+    openGraph: {
+      title: data.nombre,
+      description: descripcion,
+      url: `${siteUrl}/producto/${slug}`,
+      type: 'website',
+      images: imagen ? [{ url: imagen.url, alt: imagen.alt || data.nombre, width: 800, height: 1067 }] : [],
+    },
+    other: {
+      'product:price:amount': String(precio),
+      'product:price:currency': 'PEN',
+    },
+  }
 }
 
 export default async function ProductoPage({ params }: Props) {
