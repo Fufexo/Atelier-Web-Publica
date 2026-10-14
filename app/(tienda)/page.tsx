@@ -1,143 +1,104 @@
-import { Link } from 'next-view-transitions'
-import { createClient } from '@/lib/supabase/server'
-import Navbar from '@/components/store/Navbar'
-import Footer from '@/components/store/Footer'
-import ProductCarousel from '@/components/store/ProductCarousel'
+import Image from 'next/image'
+import Link from 'next/link'
+import ProductGrid from '@/components/store/ProductGrid'
 import Reveal from '@/components/store/Reveal'
-import type { Producto } from '@/lib/types'
-
-const HERO_IMG = '/hero-fashion.jpg'
+import { boton } from '@/components/ui/button'
+import { getProductosPortada } from '@/lib/catalogo'
+import hero from '@/public/hero-fashion.jpg'
+import hombre from '@/public/hombre.jpg'
+import mujer from '@/public/mujer.jpg'
 
 const GENERO_CARDS = [
-  { label: 'Mujer', genero: 'mujer', img: '/mujer.jpg' },
-  { label: 'Hombre', genero: 'hombre', img: '/hombre.jpg' },
+  { label: 'Mujer', genero: 'mujer', img: mujer },
+  { label: 'Hombre', genero: 'hombre', img: hombre },
 ]
 
 export default async function HomePage() {
-  const supabase = await createClient()
-
-  const [{ data: productos }, { data: destacados }] = await Promise.all([
-    supabase.from('productos').select('*, categorias(nombre)').eq('activo', true).order('orden', { ascending: true }).order('created_at', { ascending: false }).limit(12),
-    supabase.from('productos').select('*, categorias(nombre)').eq('activo', true).eq('destacado', true).order('orden', { ascending: true }).order('created_at', { ascending: false }).limit(12),
-  ])
-
-  const prods: Producto[] = productos ?? []
-  const idsDestacados = new Set((destacados ?? []).map(p => p.id))
-  const resto = prods.filter(p => !idsDestacados.has(p.id))
-  const propsDestacados: Producto[] = [...(destacados ?? []), ...resto]
+  const productos = await getProductosPortada()
 
   return (
     <>
-      <Navbar />
-      <main>
-        {/* ── Hero ── */}
-        <section className="relative min-h-[90vh] flex items-end overflow-hidden bg-stone-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={HERO_IMG} alt="Nueva Colección" className="absolute inset-0 w-full h-full object-cover object-top" />
-          <div className="absolute inset-0 bg-linear-to-t from-stone-900/55 via-stone-900/10 to-transparent" />
-          <div className="relative z-10 px-8 lg:px-16 pb-16 lg:pb-24">
-            <Reveal delay={200}>
-              <span className="text-xs uppercase tracking-widest text-white/60 mb-3 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-                Nueva Colección
-              </span>
-              <h1 className="text-5xl md:text-7xl lg:text-8xl text-white leading-[1.05] tracking-tight mb-8" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-                Otoño Invierno<br />2026
-              </h1>
+      {/* ── Hero ── */}
+      <section className="relative flex min-h-[90vh] items-end overflow-hidden bg-stone-100">
+        <Image
+          src={hero}
+          alt=""
+          fill
+          preload
+          placeholder="blur"
+          sizes="100vw"
+          className="object-cover object-top"
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-stone-900/60 via-stone-900/10 to-transparent" />
+        <Reveal modo="carga" delay={150} className="relative z-10 px-6 pb-16 md:px-8 lg:px-16 lg:pb-24">
+          <p className="mb-3 text-xs tracking-widest text-white/80 uppercase">Nueva colección</p>
+          <h1 className="mb-8 font-serif text-5xl leading-[1.05] tracking-tight text-white md:text-7xl lg:text-8xl">
+            Otoño Invierno
+            <br />
+            2026
+          </h1>
+          <Link href="/tienda" className={boton({ variante: 'claro' })}>
+            Ver colección
+          </Link>
+        </Reveal>
+      </section>
+
+      {/* ── Lo más nuevo ── */}
+      <section aria-labelledby="titulo-nuevos" className="bg-crema px-6 py-24 md:px-8">
+        <div className="mx-auto max-w-7xl">
+          <Reveal className="mb-8 flex flex-col gap-3 md:mb-12 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="mb-2 text-xs tracking-[0.3em] text-stone-500 uppercase">Selección</p>
+              <h2 id="titulo-nuevos" className="font-serif text-3xl font-medium text-stone-900 md:text-4xl">
+                Lo más nuevo
+              </h2>
+            </div>
+            <Link
+              href="/tienda"
+              className={boton({ variante: 'enlace', className: 'self-start md:self-auto' })}
+            >
+              Ver todo
+            </Link>
+          </Reveal>
+
+          {productos.length === 0 ? (
+            <p className="py-20 text-center text-stone-500">Pronto habrá productos disponibles.</p>
+          ) : (
+            <ProductGrid productos={productos} />
+          )}
+        </div>
+      </section>
+
+      {/* ── Mujer / Hombre ── */}
+      <section aria-label="Colecciones" className="bg-white px-6 py-24 md:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2">
+          {GENERO_CARDS.map((card, i) => (
+            <Reveal key={card.genero} direction={i === 0 ? 'left' : 'right'}>
               <Link
-                href="/tienda"
-                className="inline-block bg-white text-stone-900 px-8 py-3 text-xs uppercase tracking-widest font-semibold hover:bg-stone-900 hover:text-white transition-all duration-300"
-                style={{ fontFamily: 'var(--font-manrope)' }}
+                href={`/tienda?genero=${card.genero}`}
+                className="group relative block aspect-4/3 overflow-hidden bg-stone-100"
               >
-                Ver Colección
+                <Image
+                  src={card.img}
+                  alt=""
+                  fill
+                  placeholder="blur"
+                  sizes="(min-width: 768px) 50vw, 100vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <span className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/25 text-center transition-colors duration-500 group-hover:bg-stone-900/40">
+                  <span className="mb-2 text-[10px] tracking-[0.2em] text-white/80 uppercase">
+                    Colección otoño
+                  </span>
+                  <span className="font-serif text-5xl font-normal tracking-tight text-white">
+                    {card.label}
+                  </span>
+                </span>
               </Link>
             </Reveal>
-          </div>
-        </section>
-
-        {/* ── Destacados ── */}
-        <section id="nuevos-ingresos" className="py-24 px-8 bg-[#f5f2ed]">
-          <div className="max-w-7xl mx-auto">
-            <Reveal>
-              <div className="mb-8 md:mb-12">
-                {/* Desktop: título y "Ver todo" en la misma fila */}
-                <div className="hidden md:flex justify-between items-end">
-                  <div>
-                    <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-2 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-                      Selección
-                    </span>
-                    <h2 className="text-3xl md:text-4xl text-stone-900 font-medium" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-                      Lo más nuevo
-                    </h2>
-                  </div>
-                  <Link
-                    href="/tienda"
-                    className="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors border-b border-stone-400 hover:border-stone-900 pb-0.5"
-                    style={{ fontFamily: 'var(--font-manrope)' }}
-                  >
-                    Ver todo
-                  </Link>
-                </div>
-                {/* Mobile: título arriba, "Ver todo" debajo */}
-                <div className="md:hidden">
-                  <span className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-2 block" style={{ fontFamily: 'var(--font-manrope)' }}>
-                    Selección
-                  </span>
-                  <h2 className="text-3xl text-stone-900 font-medium mb-3" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-                    Lo más nuevo
-                  </h2>
-                  <Link
-                    href="/tienda"
-                    className="text-xs uppercase tracking-widest text-stone-500 border-b border-stone-400 pb-0.5"
-                    style={{ fontFamily: 'var(--font-manrope)' }}
-                  >
-                    Ver todo
-                  </Link>
-                </div>
-              </div>
-            </Reveal>
-
-            <Reveal delay={100}>
-              {propsDestacados.length === 0 ? (
-                <p className="text-center text-stone-400 py-20">Pronto habrá productos disponibles.</p>
-              ) : (
-                <ProductCarousel productos={propsDestacados} />
-              )}
-            </Reveal>
-          </div>
-        </section>
-
-        {/* ── Mujer / Hombre ── */}
-        <section className="py-24 px-8 bg-white">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {GENERO_CARDS.map((card, i) => (
-                <Reveal key={card.genero} direction={i === 0 ? 'left' : 'right'} delay={i * 100}>
-                  <Link
-                    href={`/tienda?genero=${card.genero}`}
-                    className="group relative aspect-[4/3] overflow-hidden bg-stone-100 block"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={card.img}
-                      alt={card.label}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-stone-900/20 group-hover:bg-stone-900/40 transition-colors duration-500 flex flex-col items-center justify-center text-center">
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-white/70 mb-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                        Colección Otoño
-                      </span>
-                      <h3 className="text-5xl text-white tracking-tight font-normal" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-                        {card.label}
-                      </h3>
-                    </div>
-                  </Link>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-      </main>
-      <Footer />
+          ))}
+        </div>
+      </section>
     </>
   )
 }

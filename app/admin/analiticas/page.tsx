@@ -1,168 +1,109 @@
-import { createClient } from '@/lib/supabase/server'
-import { formatearPrecio } from '@/lib/utils'
+import { AdminHeader, Card, CardHeader } from '@/components/admin/ui'
+import { diaCorto, productosMasVendidos, resumenVentas, ventasPorDia } from '@/lib/analiticas'
+import { requireAdmin } from '@/lib/auth'
+import { formatearPrecio, inicioDelDiaEnLima } from '@/lib/format'
+import GraficoIngresos from './GraficoIngresos'
 
-export const metadata = { title: 'Analíticas — Admin' }
+export const metadata = { title: 'Analíticas' }
 
-function formatDay(dateStr: string) {
-  const d = new Date(dateStr)
-  return `${d.getDate()}/${d.getMonth() + 1}`
-}
+const DIAS = 30
+const SIN_VENTA = '("cancelado","reembolsado")'
 
 export default async function AnaliticasPage() {
-  const supabase = await createClient()
+  const { supabase } = await requireAdmin()
+  const desde = inicioDelDiaEnLima(DIAS - 1)
 
-  const hace30 = new Date()
-  hace30.setDate(hace30.getDate() - 29)
-  hace30.setHours(0, 0, 0, 0)
-
-  const [{ data: pedidos }, { data: items }] = await Promise.all([
+  const [pedidos, items] = await Promise.all([
     supabase
       .from('pedidos')
-      .select('total, estado, created_at')
-      .gte('created_at', hace30.toISOString())
-      .not('estado', 'in', '("cancelado","reembolsado")'),
+      .select('total, created_at')
+      .gte('created_at', desde)
+      .not('estado', 'in', SIN_VENTA),
+    // Mismo período que el gráfico (antes sumaba todo el historial).
     supabase
       .from('items_pedido')
-      .select('nombre_producto, cantidad, subtotal, pedidos!inner(estado)')
-      .not('pedidos.estado', 'in', '("cancelado","reembolsado")'),
+      .select('nombre_producto, cantidad, precio_unitario, pedidos!inner(estado, created_at)')
+      .gte('pedidos.created_at', desde)
+      .not('pedidos.estado', 'in', SIN_VENTA),
   ])
+  if (pedidos.error) throw new Error(pedidos.error.message)
+  if (items.error) throw new Error(items.error.message)
 
-  // Ventas por día (últimos 30 días)
-  const diasMap: Record<string, { revenue: number; orders: number }> = {}
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(hace30)
-    d.setDate(d.getDate() + i)
-    diasMap[d.toISOString().slice(0, 10)] = { revenue: 0, orders: 0 }
-  }
-  for (const p of pedidos ?? []) {
-    const dia = p.created_at.slice(0, 10)
-    if (diasMap[dia]) {
-      diasMap[dia].revenue += Number(p.total)
-      diasMap[dia].orders += 1
-    }
-  }
-  const dias = Object.entries(diasMap).map(([date, v]) => ({ date, ...v }))
+  const dias = ventasPorDia(pedidos.data, desde, DIAS)
+  const resumen = resumenVentas(dias)
+  const top = productosMasVendidos(items.data)
 
-  // Stats del período
-  const revenueTotal = dias.reduce((s, d) => s + d.revenue, 0)
-  const ordersTotal = dias.reduce((s, d) => s + d.orders, 0)
-  const avgOrder = ordersTotal > 0 ? revenueTotal / ordersTotal : 0
-  const mejorDia = dias.reduce((best, d) => d.revenue > best.revenue ? d : best, dias[0])
-
-  // Productos más vendidos
-  const productosMap: Record<string, { cantidad: number; revenue: number }> = {}
-  for (const item of items ?? []) {
-    if (!productosMap[item.nombre_producto]) {
-      productosMap[item.nombre_producto] = { cantidad: 0, revenue: 0 }
-    }
-    productosMap[item.nombre_producto].cantidad += item.cantidad
-    productosMap[item.nombre_producto].revenue += Number(item.subtotal)
-  }
-  const topProductos = Object.entries(productosMap)
-    .map(([nombre, v]) => ({ nombre, ...v }))
-    .sort((a, b) => b.cantidad - a.cantidad)
-    .slice(0, 10)
-
-  // SVG chart
-  const maxRevenue = Math.max(...dias.map((d) => d.revenue), 1)
-  const chartW = 720
-  const chartH = 140
-  const barW = Math.floor((chartW - 60) / dias.length) - 2
-  const barSpacing = Math.floor((chartW - 60) / dias.length)
+  const stats = [
+    { label: 'Ingresos', value: formatearPrecio(resumen.ingresos) },
+    { label: 'Pedidos', value: resumen.pedidos },
+    { label: 'Ticket promedio', value: formatearPrecio(resumen.ticketPromedio) },
+    { label: 'Mejor día', value: resumen.mejorDia ? diaCorto(resumen.mejorDia.fecha) : '—' },
+  ]
 
   return (
-    <div className="p-8 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Analíticas</h1>
-      <p className="text-sm text-gray-400 mb-8">Últimos 30 días</p>
+    <div className="max-w-5xl p-8">
+      <AdminHeader titulo="Analíticas" />
+      <p className="-mt-6 mb-8 text-sm text-gray-500">
+        Últimos {DIAS} días · pedidos cancelados y reembolsados excluidos
+      </p>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Ingresos', value: formatearPrecio(revenueTotal), color: 'text-green-600' },
-          { label: 'Pedidos', value: ordersTotal, color: 'text-blue-600' },
-          { label: 'Ticket promedio', value: formatearPrecio(avgOrder), color: 'text-purple-600' },
-          { label: 'Mejor día', value: mejorDia?.revenue > 0 ? formatDay(mejorDia.date) : '—', color: 'text-amber-600' },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-xs text-gray-400 mb-1">{s.label}</p>
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+      <dl className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {stats.map((s) => (
+          <div key={s.label} className="rounded-xl border border-gray-200 bg-white p-5">
+            <dt className="mb-1 text-xs text-gray-500">{s.label}</dt>
+            <dd className="text-2xl font-bold text-gray-900 tabular-nums">{s.value}</dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      {/* Gráfico de barras */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-        <h2 className="font-semibold text-gray-900 mb-6">Ingresos diarios</h2>
-        {revenueTotal === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-10">Sin datos en este período.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <svg width={chartW} height={chartH + 30} className="block">
-              {/* Líneas guía */}
-              {[0.25, 0.5, 0.75, 1].map((pct) => (
-                <line
-                  key={pct}
-                  x1={50} y1={chartH - chartH * pct}
-                  x2={chartW} y2={chartH - chartH * pct}
-                  stroke="#f3f4f6" strokeWidth={1}
-                />
-              ))}
-              {/* Barras */}
-              {dias.map((d, i) => {
-                const h = maxRevenue > 0 ? Math.max((d.revenue / maxRevenue) * chartH, d.revenue > 0 ? 2 : 0) : 0
-                const x = 50 + i * barSpacing
-                const y = chartH - h
-                return (
-                  <g key={d.date}>
-                    <rect
-                      x={x} y={y} width={barW} height={h}
-                      fill={d.revenue > 0 ? '#1e293b' : '#f1f5f9'}
-                      rx={2}
-                    />
-                    {/* Label día cada 5 */}
-                    {i % 5 === 0 && (
-                      <text x={x + barW / 2} y={chartH + 18} textAnchor="middle" fontSize={10} fill="#9ca3af">
-                        {formatDay(d.date)}
-                      </text>
-                    )}
-                  </g>
-                )
-              })}
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* Productos más vendidos */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900">Productos más vendidos</h2>
+      <Card className="mb-8">
+        <CardHeader titulo="Ingresos diarios" />
+        <div className="p-6">
+          {resumen.ingresos === 0 ? (
+            <p className="py-10 text-center text-sm text-gray-500">Sin ventas en este período.</p>
+          ) : (
+            <GraficoIngresos dias={dias} />
+          )}
         </div>
-        {topProductos.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-gray-400 text-center">Sin datos aún.</p>
+      </Card>
+
+      <Card className="overflow-x-auto">
+        <CardHeader titulo="Productos más vendidos" />
+        {top.length === 0 ? (
+          <p className="px-6 py-8 text-center text-sm text-gray-500">Sin datos aún.</p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+            <thead className="bg-gray-50 text-xs tracking-wide text-gray-500 uppercase">
               <tr>
-                <th className="px-6 py-3 text-left">#</th>
-                <th className="px-6 py-3 text-left">Producto</th>
-                <th className="px-6 py-3 text-right">Unidades vendidas</th>
-                <th className="px-6 py-3 text-right">Ingresos</th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  #
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  Producto
+                </th>
+                <th scope="col" className="px-6 py-3 text-right">
+                  Unidades
+                </th>
+                <th scope="col" className="px-6 py-3 text-right">
+                  Ingresos
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {topProductos.map((p, i) => (
+              {top.map((p, i) => (
                 <tr key={p.nombre} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-400 font-mono text-xs">{i + 1}</td>
+                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{i + 1}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{p.nombre}</td>
-                  <td className="px-6 py-4 text-right text-gray-700">{p.cantidad}</td>
-                  <td className="px-6 py-4 text-right font-medium text-gray-900">{formatearPrecio(p.revenue)}</td>
+                  <td className="px-6 py-4 text-right text-gray-700 tabular-nums">{p.cantidad}</td>
+                  <td className="px-6 py-4 text-right font-medium text-gray-900 tabular-nums">
+                    {formatearPrecio(p.ingresos)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

@@ -1,51 +1,46 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, use, useSyncExternalStore } from 'react'
 
-const ThemeContext = createContext({
-  dark: false,
-  toggle: () => {},
-})
+const CLAVE = 'admin-theme'
+const listeners = new Set<() => void>()
+
+function leerOscuro(): boolean {
+  try {
+    return localStorage.getItem(CLAVE) === 'dark'
+  } catch {
+    return false
+  }
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function alternar() {
+  try {
+    localStorage.setItem(CLAVE, leerOscuro() ? 'light' : 'dark')
+  } catch {
+    // Sin almacenamiento no se recuerda la preferencia.
+  }
+  listeners.forEach((l) => l())
+}
+
+const ThemeContext = createContext({ dark: false, toggle: alternar })
 
 export function useTheme() {
-  return useContext(ThemeContext)
+  return use(ThemeContext)
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [dark, setDark] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('admin-theme')
-    if (saved === 'dark') setDark(true)
-    setMounted(true)
-  }, [])
-
-  function toggle() {
-    setDark((prev) => {
-      const next = !prev
-      localStorage.setItem('admin-theme', next ? 'dark' : 'light')
-      return next
-    })
-  }
-
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen bg-gray-50" style={{ colorScheme: 'light' }}>
-        {children}
-      </div>
-    )
-  }
+  const dark = useSyncExternalStore(subscribe, leerOscuro, () => false)
 
   return (
-    <ThemeContext.Provider value={{ dark, toggle }}>
-      <div
-        data-theme={dark ? 'dark' : 'light'}
-        className="flex min-h-screen bg-gray-50"
-        style={{ colorScheme: dark ? 'dark' : 'light' }}
-      >
+    <ThemeContext value={{ dark, toggle: alternar }}>
+      <div data-theme={dark ? 'dark' : 'light'} className="flex min-h-screen bg-gray-50">
         {children}
       </div>
-    </ThemeContext.Provider>
+    </ThemeContext>
   )
 }

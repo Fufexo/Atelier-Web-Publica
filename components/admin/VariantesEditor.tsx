@@ -1,121 +1,130 @@
 'use client'
 
-import { useState } from 'react'
-import type { VarianteInput } from '@/app/admin/productos/actions'
+import type { VarianteInput } from '@/app/admin/productos/schema'
 
-const TALLAS_ROPA = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Único']
-const TALLAS_PANTALON = ['26', '28', '30', '32', '34', '36', '38', '40']
+const TALLAS_SUGERIDAS = [
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  'XXL',
+  'Único',
+  '26',
+  '28',
+  '30',
+  '32',
+  '34',
+  '36',
+  '38',
+  '40',
+]
 
-interface Props {
-  inicial?: VarianteInput[]
-  onChange: (variantes: VarianteInput[]) => void
+const input =
+  'w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-1 focus:ring-slate-500 focus:outline-none'
+
+export type VarianteForm = Omit<VarianteInput, 'talla' | 'color' | 'sku_variante'> & {
+  talla: string
+  color: string
+  sku_variante: string
 }
 
-export default function VariantesEditor({ inicial = [], onChange }: Props) {
-  const [variantes, setVariantes] = useState<VarianteInput[]>(inicial)
+interface Props {
+  variantes: VarianteForm[]
+  onChange: (variantes: VarianteForm[]) => void
+}
 
-  function actualizar(index: number, campo: keyof VarianteInput, valor: string | number | boolean) {
-    const nuevas = variantes.map((v, i) =>
-      i === index ? { ...v, [campo]: valor } : v
-    )
-    setVariantes(nuevas)
-    onChange(nuevas)
-  }
-
-  function agregar() {
-    const nuevas = [
-      ...variantes,
-      { talla: '', color: '', stock: 0, sku_variante: '', activa: true },
-    ]
-    setVariantes(nuevas)
-    onChange(nuevas)
-  }
-
-  function eliminar(index: number) {
-    const nuevas = variantes.filter((_, i) => i !== index)
-    setVariantes(nuevas)
-    onChange(nuevas)
+/** Editor controlado de tallas / colores / stock. */
+export default function VariantesEditor({ variantes, onChange }: Props) {
+  function actualizar<K extends keyof VarianteForm>(index: number, campo: K, valor: VarianteForm[K]) {
+    onChange(variantes.map((v, i) => (i === index ? { ...v, [campo]: valor } : v)))
   }
 
   return (
     <div className="space-y-3">
       {variantes.length === 0 && (
-        <p className="text-sm text-gray-400 italic">
-          Sin variantes — el producto se vende sin talla ni color.
+        <p className="text-sm text-gray-500 italic">
+          Sin variantes: agrega al menos una para que el producto se pueda comprar.
         </p>
       )}
 
       {variantes.map((v, i) => (
-        <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
-          <div className="flex-1">
-            <label className="block text-xs text-gray-500 mb-1">Talla</label>
+        <fieldset
+          key={v.id ?? `nueva-${i}`}
+          className="flex flex-wrap items-end gap-3 rounded-lg bg-gray-50 p-3"
+        >
+          <legend className="sr-only">Variante {i + 1}</legend>
+          <label className="min-w-24 flex-1">
+            <span className="mb-1 block text-xs text-gray-500">Talla</span>
             <input
               list="tallas-sugeridas"
               value={v.talla}
               onChange={(e) => actualizar(i, 'talla', e.target.value)}
-              placeholder="S, M, L, 32..."
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder="S, M, 32…"
+              className={input}
             />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs text-gray-500 mb-1">Color</label>
+          </label>
+          <label className="min-w-24 flex-1">
+            <span className="mb-1 block text-xs text-gray-500">Color</span>
             <input
               value={v.color}
               onChange={(e) => actualizar(i, 'color', e.target.value)}
-              placeholder="Negro, Rojo..."
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder="Negro, Rojo…"
+              className={input}
             />
-          </div>
-          <div className="w-24">
-            <label className="block text-xs text-gray-500 mb-1">Stock</label>
+          </label>
+          <label className="w-24">
+            <span className="mb-1 block text-xs text-gray-500">Stock</span>
             <input
               type="number"
               min={0}
               value={v.stock}
-              onChange={(e) => actualizar(i, 'stock', parseInt(e.target.value) || 0)}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+              onChange={(e) => actualizar(i, 'stock', Math.max(0, parseInt(e.target.value) || 0))}
+              className={input}
             />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs text-gray-500 mb-1">SKU variante</label>
+          </label>
+          <label className="min-w-24 flex-1">
+            <span className="mb-1 block text-xs text-gray-500">SKU variante</span>
             <input
               value={v.sku_variante}
               onChange={(e) => actualizar(i, 'sku_variante', e.target.value)}
               placeholder="Opcional"
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className={input}
             />
-          </div>
-          <div className="pt-4">
-            <button
-              type="button"
-              onClick={() => eliminar(i)}
-              className="text-red-400 hover:text-red-600 transition-colors"
-              title="Eliminar variante"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-xs text-gray-600">
+            <input
+              type="checkbox"
+              checked={v.activa}
+              onChange={(e) => actualizar(i, 'activa', e.target.checked)}
+            />
+            Activa
+          </label>
+          <button
+            type="button"
+            onClick={() => onChange(variantes.filter((_, j) => j !== i))}
+            className="pb-2 text-sm text-red-500 hover:text-red-700"
+            aria-label={`Eliminar variante ${i + 1}`}
+          >
+            Eliminar
+          </button>
+        </fieldset>
       ))}
 
       <datalist id="tallas-sugeridas">
-        {[...TALLAS_ROPA, ...TALLAS_PANTALON].map((t) => (
+        {TALLAS_SUGERIDAS.map((t) => (
           <option key={t} value={t} />
         ))}
       </datalist>
 
       <button
         type="button"
-        onClick={agregar}
-        className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 font-medium"
+        onClick={() =>
+          onChange([...variantes, { talla: '', color: '', stock: 0, sku_variante: '', activa: true }])
+        }
+        className="text-sm font-medium text-slate-600 hover:text-slate-900"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Agregar talla / color
+        + Agregar talla / color
       </button>
     </div>
   )

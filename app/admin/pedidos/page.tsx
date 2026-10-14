@@ -1,101 +1,111 @@
-import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { formatearPrecio, formatearFecha, ESTADO_PEDIDO_COLORS, ESTADO_PEDIDO_LABELS } from '@/lib/utils'
-import type { DireccionEnvio } from '@/lib/types'
+import { AdminHeader, Card, EstadoPedidoBadge } from '@/components/admin/ui'
+import { requireAdmin } from '@/lib/auth'
+import { formatearFecha, formatearPrecio, numeroPedido } from '@/lib/format'
+import { ESTADO_PEDIDO, ESTADOS_PEDIDO, esEstadoPedido } from '@/lib/pedidos'
+import { parsearDireccion } from '@/lib/types'
 
-export const metadata = { title: 'Pedidos — Admin' }
+export const metadata = { title: 'Pedidos' }
 
-const ESTADOS = ['todos', 'pendiente', 'pagado', 'preparando', 'enviado', 'entregado', 'cancelado']
+const POR_PAGINA = 50
 
-export default async function PedidosPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ estado?: string }>
-}) {
-  const params = await searchParams
-  const estado = params.estado ?? 'todos'
+export default async function PedidosPage({ searchParams }: PageProps<'/admin/pedidos'>) {
+  const { estado: estadoParam } = await searchParams
+  const estado = typeof estadoParam === 'string' && esEstadoPedido(estadoParam) ? estadoParam : null
+  const { supabase } = await requireAdmin()
 
-  const supabase = await createClient()
   let query = supabase
     .from('pedidos')
-    .select('*')
+    .select('id, numero, nombre_comprador, email_comprador, direccion_envio, total, estado, created_at')
     .order('created_at', { ascending: false })
+    .limit(POR_PAGINA)
+  if (estado) query = query.eq('estado', estado)
 
-  if (estado !== 'todos') {
-    query = query.eq('estado', estado)
-  }
+  const { data: pedidos, error } = await query
+  if (error) throw new Error(error.message)
 
-  const { data: pedidos } = await query
+  const filtros = [
+    { valor: null, label: 'Todos' },
+    ...ESTADOS_PEDIDO.map((e) => ({ valor: e, label: ESTADO_PEDIDO[e].label })),
+  ]
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Pedidos</h1>
+      <AdminHeader titulo="Pedidos" />
 
-      {/* Filtros */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {ESTADOS.map((e) => (
+      <nav aria-label="Filtrar por estado" className="mb-6 flex flex-wrap gap-2">
+        {filtros.map((f) => (
           <Link
-            key={e}
-            href={`/admin/pedidos${e !== 'todos' ? `?estado=${e}` : ''}`}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              estado === e
+            key={f.label}
+            href={f.valor ? `/admin/pedidos?estado=${f.valor}` : '/admin/pedidos'}
+            aria-current={estado === f.valor ? 'page' : undefined}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              estado === f.valor
                 ? 'bg-slate-900 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
-            {e === 'todos' ? 'Todos' : ESTADO_PEDIDO_LABELS[e]}
+            {f.label}
           </Link>
         ))}
-      </div>
+      </nav>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {!pedidos?.length ? (
-          <p className="px-6 py-12 text-sm text-gray-400 text-center">
-            No hay pedidos {estado !== 'todos' ? `con estado "${ESTADO_PEDIDO_LABELS[estado]}"` : ''}.
+      <Card className="overflow-x-auto">
+        {pedidos.length === 0 ? (
+          <p className="px-6 py-12 text-center text-sm text-gray-500">
+            No hay pedidos{estado ? ` con estado "${ESTADO_PEDIDO[estado].label}"` : ''}.
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide border-b border-gray-200">
+            <thead className="border-b border-gray-200 bg-gray-50 text-xs tracking-wide text-gray-500 uppercase">
               <tr>
-                <th className="px-6 py-3 text-left">N°</th>
-                <th className="px-6 py-3 text-left">Comprador</th>
-                <th className="px-6 py-3 text-left">Destino</th>
-                <th className="px-6 py-3 text-left">Total</th>
-                <th className="px-6 py-3 text-left">Estado</th>
-                <th className="px-6 py-3 text-left">Fecha</th>
-                <th className="px-6 py-3 text-left"></th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  N°
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  Comprador
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  Destino
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  Total
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  Estado
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  Fecha
+                </th>
+                <th scope="col" className="px-6 py-3 text-left">
+                  <span className="sr-only">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {pedidos.map((pedido) => {
-                const dir = pedido.direccion_envio as DireccionEnvio
+                const dir = parsearDireccion(pedido.direccion_envio)
                 return (
                   <tr key={pedido.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium">#{pedido.numero}</td>
+                    <td className="px-6 py-4 font-medium">{numeroPedido(pedido.numero)}</td>
                     <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{pedido.nombre_comprador}</p>
-                        <p className="text-xs text-gray-400">{pedido.email_comprador}</p>
-                      </div>
+                      <p className="font-medium text-gray-900">{pedido.nombre_comprador}</p>
+                      <p className="text-xs text-gray-500">{pedido.email_comprador}</p>
                     </td>
-                    <td className="px-6 py-4 text-gray-600 text-xs">
-                      {dir?.distrito}, {dir?.departamento}
+                    <td className="px-6 py-4 text-xs text-gray-600">
+                      {dir.distrito}, {dir.departamento}
                     </td>
                     <td className="px-6 py-4 font-medium">{formatearPrecio(pedido.total)}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${ESTADO_PEDIDO_COLORS[pedido.estado]}`}>
-                        {ESTADO_PEDIDO_LABELS[pedido.estado]}
-                      </span>
+                      <EstadoPedidoBadge estado={pedido.estado} />
                     </td>
-                    <td className="px-6 py-4 text-gray-500 text-xs">
-                      {formatearFecha(pedido.created_at)}
-                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-500">{formatearFecha(pedido.created_at)}</td>
                     <td className="px-6 py-4">
                       <Link
                         href={`/admin/pedidos/${pedido.id}`}
-                        className="text-slate-600 hover:text-slate-900 text-xs font-medium"
+                        className="text-xs font-medium text-slate-600 hover:text-slate-900"
                       >
-                        Ver →
+                        Ver <span className="sr-only">pedido {numeroPedido(pedido.numero)}</span> →
                       </Link>
                     </td>
                   </tr>
@@ -104,7 +114,10 @@ export default async function PedidosPage({
             </tbody>
           </table>
         )}
-      </div>
+      </Card>
+      {pedidos.length === POR_PAGINA && (
+        <p className="mt-4 text-xs text-gray-500">Mostrando los {POR_PAGINA} pedidos más recientes.</p>
+      )}
     </div>
   )
 }

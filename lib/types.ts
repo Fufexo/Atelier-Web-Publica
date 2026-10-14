@@ -1,24 +1,17 @@
-export type EstadoPedido =
-  | 'pendiente'
-  | 'pagado'
-  | 'preparando'
-  | 'enviado'
-  | 'entregado'
-  | 'cancelado'
-  | 'reembolsado'
+import type { Enums, Json, Tables } from './supabase/database.types'
 
-export type EstadoPago = 'pendiente' | 'completado' | 'fallido' | 'reembolsado'
-export type MetodoPago = 'tarjeta' | 'yape' | 'plin' | 'cuotas'
+// Los tipos de fila salen de `database.types.ts` (generado desde Supabase). Aquí solo
+// se afinan las columnas JSONB y los textos con valores cerrados.
 
-export interface Categoria {
-  id: string
-  nombre: string
-  slug: string
-  descripcion: string | null
-  imagen_url: string | null
-  activa: boolean
-  orden: number
-  created_at: string
+export type EstadoPedido = Enums<'estado_pedido'>
+export type EstadoPago = Enums<'estado_pago'>
+export type MetodoPago = Enums<'metodo_pago'>
+
+export const GENEROS = ['mujer', 'hombre', 'unisex'] as const
+export type Genero = (typeof GENEROS)[number]
+
+export function esGenero(valor: unknown): valor is Genero {
+  return typeof valor === 'string' && (GENEROS as readonly string[]).includes(valor)
 }
 
 export interface ImagenProducto {
@@ -27,33 +20,22 @@ export interface ImagenProducto {
   orden: number
 }
 
-export interface Producto {
-  id: string
-  categoria_id: string | null
-  nombre: string
-  slug: string
-  descripcion: string | null
-  precio: number
-  precio_oferta: number | null
-  sku: string | null
+export type Categoria = Tables<'categorias'>
+export type Variante = Tables<'variantes'>
+export type ItemPedido = Tables<'items_pedido'>
+export type Pago = Tables<'pagos'>
+
+export type Producto = Omit<Tables<'productos'>, 'imagenes' | 'genero'> & {
   imagenes: ImagenProducto[]
-  activo: boolean
-  destacado: boolean
-  genero: 'hombre' | 'mujer' | 'unisex'
-  created_at: string
-  updated_at: string
-  categorias?: Categoria | null
-  variantes?: Variante[]
+  genero: Genero
 }
 
-export interface Variante {
-  id: string
-  producto_id: string
-  talla: string | null
-  color: string | null
-  stock: number
-  sku_variante: string | null
-  activa: boolean
+/** Lo mínimo que necesita una card de producto. */
+export type ProductoResumen = Pick<
+  Producto,
+  'id' | 'slug' | 'nombre' | 'precio' | 'precio_oferta' | 'imagenes'
+> & {
+  categoria: string | null
 }
 
 export interface DireccionEnvio {
@@ -66,53 +48,39 @@ export interface DireccionEnvio {
   referencia?: string
 }
 
-export interface ItemPedido {
-  id: string
-  pedido_id: string
-  producto_id: string | null
-  variante_id: string | null
-  nombre_producto: string
-  talla: string | null
-  color: string | null
-  precio_unitario: number
-  cantidad: number
-  subtotal: number
-}
-
-export interface Pago {
-  id: string
-  pedido_id: string
-  estado: EstadoPago
-  metodo: MetodoPago | null
-  culqi_charge_id: string | null
-  monto: number
-  moneda: string
-  ultimos_4_digitos: string | null
-  marca_tarjeta: string | null
-  error_mensaje: string | null
-  created_at: string
-}
-
-// Para relaciones con count (ej: categorias con productos(count))
-export type ConCount = { count: number }[]
-
-export interface Pedido {
-  id: string
-  usuario_id: string | null
-  numero: number
-  estado: EstadoPedido
-  subtotal: number
-  igv: number
-  costo_envio: number
-  total: number
-  moneda: string
+export type Pedido = Omit<Tables<'pedidos'>, 'direccion_envio'> & {
   direccion_envio: DireccionEnvio
-  nombre_comprador: string
-  email_comprador: string
-  telefono_comprador: string | null
-  notas: string | null
-  created_at: string
-  updated_at: string
-  items_pedido?: ItemPedido[]
-  pagos?: Pago[]
+}
+
+/** `imagenes` es JSONB: se valida al leer para no confiar en la forma guardada. */
+export function parsearImagenes(valor: Json): ImagenProducto[] {
+  if (!Array.isArray(valor)) return []
+  return valor
+    .filter(
+      (img): img is { url: string; alt?: string; orden?: number } =>
+        typeof img === 'object' && img !== null && !Array.isArray(img) && typeof img.url === 'string'
+    )
+    .map((img, i) => ({
+      url: img.url,
+      alt: typeof img.alt === 'string' ? img.alt : '',
+      orden: typeof img.orden === 'number' ? img.orden : i,
+    }))
+    .sort((a, b) => a.orden - b.orden)
+}
+
+export function parsearDireccion(valor: Json): DireccionEnvio {
+  const d = (typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor : {}) as Record<
+    string,
+    Json | undefined
+  >
+  const texto = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : '')
+  return {
+    nombre_destinatario: texto('nombre_destinatario'),
+    telefono: texto('telefono'),
+    departamento: texto('departamento'),
+    provincia: texto('provincia'),
+    distrito: texto('distrito'),
+    direccion: texto('direccion'),
+    referencia: texto('referencia') || undefined,
+  }
 }

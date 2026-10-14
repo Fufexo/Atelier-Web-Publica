@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { formatearPrecio } from '@/lib/utils'
+import Image from 'next/image'
+import { useState, ViewTransition } from 'react'
+import Icon from '@/components/ui/Icon'
+import QuantityStepper from '@/components/ui/QuantityStepper'
+import { boton } from '@/components/ui/button'
 import { useCarrito } from '@/lib/carrito'
+import { formatearPrecio } from '@/lib/format'
 import type { ImagenProducto, Variante } from '@/lib/types'
 
 interface Props {
@@ -13,15 +17,28 @@ interface Props {
   precio: number
   precioOferta: number | null
   imagenes: ImagenProducto[]
+  /** Solo variantes activas. */
   variantes: Variante[]
 }
 
-export default function ProductoDetalle({ productoId, slug, nombre, descripcion, precio, precioOferta, imagenes, variantes }: Props) {
+function unicos(valores: (string | null)[]): string[] {
+  return [...new Set(valores.filter((v): v is string => !!v))]
+}
+
+export default function ProductoDetalle({
+  productoId,
+  slug,
+  nombre,
+  descripcion,
+  precio,
+  precioOferta,
+  imagenes,
+  variantes,
+}: Props) {
   const { agregar } = useCarrito()
 
-  const activas = variantes.filter((v) => v.activa)
-  const colores = [...new Set(activas.filter((v) => v.color).map((v) => v.color!))]
-  const tallas = [...new Set(activas.filter((v) => v.talla).map((v) => v.talla!))]
+  const colores = unicos(variantes.map((v) => v.color))
+  const tallas = unicos(variantes.map((v) => v.talla))
 
   const [imagenIdx, setImagenIdx] = useState(0)
   const [colorSel, setColorSel] = useState<string | null>(colores[0] ?? null)
@@ -29,211 +46,200 @@ export default function ProductoDetalle({ productoId, slug, nombre, descripcion,
   const [cantidad, setCantidad] = useState(1)
   const [agregado, setAgregado] = useState(false)
 
-  // Cuando cambia la imagen → sincroniza color por índice
+  // Convención del admin: la imagen N corresponde al color N. Elegir uno sincroniza el otro.
   function seleccionarImagen(idx: number) {
     setImagenIdx(idx)
-    if (colores[idx]) {
-      setColorSel(colores[idx])
-      setTallaSel(null)
-    }
+    if (colores[idx]) seleccionarColor(colores[idx], false)
   }
 
-  // Cuando cambia el color → sincroniza imagen por índice
-  function seleccionarColor(color: string) {
+  function seleccionarColor(color: string, moverImagen = true) {
     setColorSel(color)
     setTallaSel(null)
+    setCantidad(1)
     const idx = colores.indexOf(color)
-    if (idx >= 0 && imagenes[idx]) setImagenIdx(idx)
+    if (moverImagen && idx >= 0 && imagenes[idx]) setImagenIdx(idx)
   }
 
-  const tallasDisponibles = useMemo(() =>
-    activas
-      .filter((v) => (colorSel ? v.color === colorSel : true) && v.stock > 0)
-      .map((v) => v.talla!)
-      .filter(Boolean)
-  , [colorSel, activas])
+  const delColor = variantes.filter((v) => colores.length === 0 || v.color === colorSel)
+  const tallasConStock = new Set(delColor.filter((v) => v.stock > 0).map((v) => v.talla))
+  const seleccionada = delColor.find((v) => tallas.length === 0 || v.talla === tallaSel)
 
-  const varianteSeleccionada = activas.find((v) =>
-    (colores.length === 0 || v.color === colorSel) &&
-    (tallas.length === 0 || v.talla === tallaSel)
-  )
-
-  const stock = varianteSeleccionada?.stock ?? 0
-  const sinStock = !!varianteSeleccionada && stock === 0
-  const puedeAgregar = !!varianteSeleccionada && stock > 0
+  const stock = seleccionada?.stock ?? 0
+  const puedeAgregar = !!seleccionada && stock > 0
+  const falta = tallas.length > 0 && !tallaSel ? 'Selecciona una talla' : null
 
   function agregarAlCarrito() {
-    if (!puedeAgregar || !varianteSeleccionada) return
-    agregar({
-      varianteId: varianteSeleccionada.id,
-      productoId,
-      slug,
-      nombre,
-      imagen: imagenes[imagenIdx]?.url ?? imagenes[0]?.url ?? '',
-      precio: precioOferta ?? precio,
-      talla: tallaSel,
-      color: colorSel,
-      stock,
-    }, cantidad)
+    if (!seleccionada || !puedeAgregar) return
+    agregar(
+      {
+        varianteId: seleccionada.id,
+        productoId,
+        slug,
+        nombre,
+        imagen: imagenes[imagenIdx]?.url ?? imagenes[0]?.url ?? '',
+        precio: precioOferta ?? precio,
+        talla: seleccionada.talla,
+        color: seleccionada.color,
+        stock,
+      },
+      cantidad
+    )
     setAgregado(true)
     setTimeout(() => setAgregado(false), 2000)
   }
 
-  const precioMostrar = precioOferta ?? precio
+  const imagen = imagenes[imagenIdx]
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+    <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
       {/* ── Galería ── */}
-      <div className="flex gap-4">
+      <div className="flex flex-col-reverse gap-4 sm:flex-row">
         {imagenes.length > 1 && (
-          <div className="flex flex-col gap-2 w-16 shrink-0">
+          <div className="flex scrollbar-none gap-2 overflow-x-auto sm:w-16 sm:shrink-0 sm:flex-col">
             {imagenes.map((img, i) => (
               <button
-                key={i}
+                key={img.url}
+                type="button"
                 onClick={() => seleccionarImagen(i)}
-                className={`aspect-square overflow-hidden border-2 transition-colors ${
+                aria-label={`Ver imagen ${i + 1} de ${imagenes.length}`}
+                aria-current={imagenIdx === i}
+                className={`relative aspect-square w-16 shrink-0 overflow-hidden border-2 transition-colors ${
                   imagenIdx === i ? 'border-stone-900' : 'border-transparent'
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt={img.alt || nombre} className="w-full h-full object-cover" />
+                <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
               </button>
             ))}
           </div>
         )}
-        <div className="flex-1 aspect-[3/4] overflow-hidden bg-stone-100">
-          {imagenes.length > 0 ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imagenes[imagenIdx].url}
-              alt={imagenes[imagenIdx].alt || nombre}
-              className="w-full h-full object-cover transition-opacity duration-300"
-            />
+        <div className="relative aspect-3/4 flex-1 overflow-hidden bg-stone-100">
+          {imagen ? (
+            <ViewTransition name={imagenIdx === 0 ? `producto-${slug}` : undefined}>
+              <Image
+                src={imagen.url}
+                alt={imagen.alt || nombre}
+                fill
+                preload={imagenIdx === 0}
+                sizes="(min-width: 1024px) 45vw, 100vw"
+                className="object-cover"
+              />
+            </ViewTransition>
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="material-symbols-outlined text-stone-300 text-8xl">deployed_code</span>
+            <div className="flex h-full items-center justify-center text-stone-300">
+              <Icon name="imagen" className="size-20" />
             </div>
           )}
         </div>
       </div>
 
       {/* ── Info ── */}
-      <div className="lg:sticky lg:top-28 self-start space-y-6">
-        {/* Precio */}
-        <div className="flex items-center gap-4">
-          <span className="text-2xl text-stone-900" style={{ fontFamily: 'var(--font-manrope)' }}>
-            {formatearPrecio(precioMostrar)}
-          </span>
-          {precioOferta && (
-            <span className="text-lg text-stone-400 line-through" style={{ fontFamily: 'var(--font-manrope)' }}>
+      <div className="space-y-6 self-start lg:sticky lg:top-28">
+        <p className="flex items-center gap-4">
+          <span className="text-2xl text-stone-900">{formatearPrecio(precioOferta ?? precio)}</span>
+          {precioOferta !== null && (
+            <span className="text-lg text-stone-500 line-through">
+              <span className="sr-only">Antes </span>
               {formatearPrecio(precio)}
             </span>
           )}
-        </div>
+        </p>
 
         <div className="w-12 border-t border-stone-200" />
 
-        {/* Descripción */}
         {descripcion && (
           <div className="space-y-3">
             {descripcion.split(/\n\s*\n/).map((parrafo, i) => (
-              <p key={i} className="text-sm text-stone-500 leading-relaxed" style={{ fontFamily: 'var(--font-manrope)' }}>
+              <p key={i} className="text-sm leading-relaxed text-stone-600">
                 {parrafo.trim()}
               </p>
             ))}
           </div>
         )}
 
-        {/* Color */}
         {colores.length > 0 && (
-          <div>
-            <p className="text-xs uppercase tracking-widest text-stone-400 mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Color — <span className="text-stone-600 normal-case tracking-normal">{colorSel}</span>
-            </p>
+          <fieldset>
+            <legend className="mb-3 text-xs tracking-widest text-stone-500 uppercase">
+              Color — <span className="tracking-normal text-stone-700 normal-case">{colorSel}</span>
+            </legend>
             <div className="flex flex-wrap gap-2">
               {colores.map((color) => (
                 <button
                   key={color}
+                  type="button"
+                  aria-pressed={colorSel === color}
                   onClick={() => seleccionarColor(color)}
-                  className={`px-4 py-2 text-xs border transition-colors ${
+                  className={`min-h-11 border px-4 py-2 text-xs transition-colors ${
                     colorSel === color
                       ? 'border-stone-900 bg-stone-900 text-white'
                       : 'border-stone-200 text-stone-700 hover:border-stone-400'
                   }`}
-                  style={{ fontFamily: 'var(--font-manrope)' }}
                 >
                   {color}
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
         )}
 
-        {/* Talla */}
         {tallas.length > 0 && (
-          <div>
-            <p className="text-xs uppercase tracking-widest text-stone-400 mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Talla
-            </p>
+          <fieldset>
+            <legend className="mb-3 text-xs tracking-widest text-stone-500 uppercase">Talla</legend>
             <div className="flex flex-wrap gap-2">
               {tallas.map((talla) => {
-                const disponible = tallasDisponibles.includes(talla)
+                const disponible = tallasConStock.has(talla)
                 return (
                   <button
                     key={talla}
-                    onClick={() => disponible && setTallaSel(talla)}
+                    type="button"
+                    aria-pressed={tallaSel === talla}
+                    onClick={() => {
+                      setTallaSel(talla)
+                      setCantidad(1)
+                    }}
                     disabled={!disponible}
-                    className={`w-12 h-12 text-sm border transition-colors ${
+                    aria-label={disponible ? `Talla ${talla}` : `Talla ${talla}, agotada`}
+                    className={`size-12 border text-sm transition-colors ${
                       tallaSel === talla
                         ? 'border-stone-900 bg-stone-900 text-white'
                         : disponible
                           ? 'border-stone-200 text-stone-700 hover:border-stone-400'
-                          : 'border-stone-100 text-stone-300 cursor-not-allowed line-through'
+                          : 'cursor-not-allowed border-stone-100 text-stone-300 line-through'
                     }`}
-                    style={{ fontFamily: 'var(--font-manrope)' }}
                   >
                     {talla}
                   </button>
                 )
               })}
             </div>
-          </div>
+          </fieldset>
         )}
 
-        {/* Cantidad */}
         {puedeAgregar && (
           <div>
-            <p className="text-xs uppercase tracking-widest text-stone-400 mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Cantidad
-            </p>
-            <div className="flex items-center border border-stone-200 w-fit">
-              <button onClick={() => setCantidad(Math.max(1, cantidad - 1))} className="w-10 h-10 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors">−</button>
-              <span className="w-10 text-center text-sm" style={{ fontFamily: 'var(--font-manrope)' }}>{cantidad}</span>
-              <button onClick={() => setCantidad(Math.min(stock, cantidad + 1))} className="w-10 h-10 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors">+</button>
-            </div>
+            <p className="mb-3 text-xs tracking-widest text-stone-500 uppercase">Cantidad</p>
+            <QuantityStepper value={cantidad} onChange={setCantidad} max={stock} etiqueta={nombre} />
             {stock <= 5 && (
-              <p className="text-xs text-amber-600 mt-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                Solo quedan {stock} unidades
+              <p className="mt-2 text-xs text-amber-700">
+                Solo {stock === 1 ? 'queda 1 unidad' : `quedan ${stock} unidades`}
               </p>
             )}
           </div>
         )}
 
-        {/* Botón */}
         <button
+          type="button"
           onClick={agregarAlCarrito}
-          disabled={!puedeAgregar || sinStock}
-          className={`w-full py-4 text-sm uppercase tracking-widest font-medium transition-all duration-300 ${
-            agregado
-              ? 'bg-stone-600 text-white'
-              : puedeAgregar
-                ? 'bg-stone-900 text-white hover:bg-stone-700'
-                : 'bg-stone-100 text-stone-400 cursor-not-allowed'
-          }`}
-          style={{ fontFamily: 'var(--font-manrope)' }}
+          disabled={!puedeAgregar}
+          className={boton({
+            ancho: 'completo',
+            className: `py-4 text-sm ${agregado ? 'bg-stone-600 hover:bg-stone-600' : ''} disabled:bg-stone-100 disabled:text-stone-500`,
+          })}
         >
-          {agregado ? '✓ Agregado al carrito' : sinStock ? 'Sin stock' : tallas.length > 0 && !tallaSel ? 'Selecciona una talla' : 'Añadir al carrito'}
+          {agregado ? '✓ Agregado al carrito' : (falta ?? (puedeAgregar ? 'Añadir al carrito' : 'Sin stock'))}
         </button>
+        <p aria-live="polite" className="sr-only">
+          {agregado ? `${nombre} agregado al carrito` : ''}
+        </p>
       </div>
     </div>
   )

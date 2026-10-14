@@ -1,176 +1,140 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextResponse, type NextRequest } from 'next/server'
+import { armarPedido, type VarianteEnBase } from '@/lib/checkout/armar-pedido'
+import { solicitudCobroSchema } from '@/lib/checkout/schema'
+import { crearCargo, reembolsarCargo } from '@/lib/culqi'
+import { enviarEmailsPedido } from '@/lib/email'
+import { precioFinal } from '@/lib/precios'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { enviarConfirmacionPedido, enviarNotificacionAdmin } from '@/lib/email'
+import type { Json } from '@/lib/supabase/database.types'
 
-interface ItemBody {
-  varianteId: string
-  productoId: string
-  nombre: string
-  precio: number
-  cantidad: number
-  talla: string | null
-  color: string | null
-}
-
-interface Body {
-  token: string
-  nombre: string
-  email: string
-  telefono: string
-  departamento: string
-  provincia: string
-  distrito: string
-  direccion: string
-  referencia: string
-  items: ItemBody[]
-  subtotal: number
-  igv: number
-  envio: number
-  total: number
-}
-
+/**
+ * Cobra un pedido con Culqi y lo registra.
+ *
+ * 1. Valida la solicitud (qué variantes, cuántas, a qué distrito).
+ * 2. Calcula precios, envío y total desde la base: nunca confía en montos del cliente.
+ * 3. Cobra ese total.
+ * 4. Registra pedido, ítems, stock y pago en una sola transacción (RPC).
+ *    Si eso falla, reembolsa el cargo para no cobrar un pedido inexistente.
+ * 5. Envía los emails después de responder.
+ */
 export async function POST(req: NextRequest) {
-  const body: Body = await req.json()
-  const {
-    token, nombre, email, telefono,
-    departamento, provincia, distrito, direccion, referencia,
-    items, subtotal, igv, envio, total,
-  } = body
-
-  // 1. Crear cargo en Culqi (monto en centavos)
-  const monto = Math.round(total * 100)
-
-  const culqiRes = await fetch('https://api.culqi.com/v2/charges', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.CULQI_SECRET_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      amount: monto,
-      currency_code: 'PEN',
-      email,
-      source_id: token,
-      description: 'Compra ATELIER',
-      metadata: { nombre, telefono },
-      antifraud_details: {
-        first_name: nombre.split(' ')[0] ?? nombre,
-        last_name: nombre.split(' ').slice(1).join(' ') || nombre,
-        phone_number: telefono,
-        address: direccion,
-        address_city: distrito,
-        country_code: 'PE',
-      },
-    }),
-  })
-
-  const culqiData = await culqiRes.json()
-
-  if (!culqiRes.ok || culqiData.object === 'error') {
+  const cuerpo: unknown = await req.json().catch(() => null)
+  const parsed = solicitudCobroSchema.safeParse(cuerpo)
+  if (!parsed.success) {
+    const primero = parsed.error.issues[0]
     return NextResponse.json(
-      { error: culqiData.user_message ?? 'Error al procesar el pago' },
-      { status: 402 }
+      { error: primero?.message ?? 'Revisa los datos del formulario.', campo: primero?.path.join('.') },
+      { status: 422 }
     )
   }
-
-  // 2. Crear pedido (service role — bypasa RLS)
+  const solicitud = parsed.data
   const supabase = createAdminClient()
 
-  const { data: pedido, error: errPedido } = await supabase
-    .from('pedidos')
-    .insert({
-      nombre_comprador: nombre,
-      email_comprador: email,
-      telefono_comprador: telefono,
-      direccion_envio: {
-        nombre_destinatario: nombre,
-        telefono,
-        departamento,
-        provincia,
-        distrito,
-        direccion,
-        referencia: referencia || undefined,
+  const { data: variantes, error: errVariantes } = await supabase
+    .from('variantes')
+    .select('id, talla, color, stock, activa, productos(id, nombre, precio, precio_oferta, activo)')
+    .in(
+      'id',
+      solicitud.items.map((i) => i.varianteId)
+    )
+
+  if (errVariantes) {
+    console.error('[cobrar] Error leyendo variantes', errVariantes)
+    return NextResponse.json({ error: 'No pudimos verificar tu carrito. Intenta de nuevo.' }, { status: 503 })
+  }
+
+  const pedido = armarPedido(solicitud, variantes as VarianteEnBase[])
+  if (!pedido.ok) {
+    // Se devuelven precio y stock actuales para que el carrito se corrija solo.
+    const carrito = (variantes as VarianteEnBase[]).map((v) => ({
+      varianteId: v.id,
+      precio: v.productos ? precioFinal(v.productos) : null,
+      stock: v.activa && v.productos?.activo ? v.stock : 0,
+    }))
+    return NextResponse.json({ error: pedido.error, carrito }, { status: pedido.status })
+  }
+
+  const { cliente } = solicitud
+  const { totales, lineas, direccion } = pedido
+
+  const cargo = await crearCargo({
+    token: solicitud.token,
+    monto: totales.total,
+    email: cliente.email,
+    nombre: cliente.nombre,
+    telefono: cliente.telefono,
+    direccion: direccion.direccion,
+    ciudad: direccion.distrito,
+  })
+  if (!cargo.ok) return NextResponse.json({ error: cargo.mensaje }, { status: 402 })
+
+  const { id: cargoId, source } = cargo.cargo
+  const { data: registrado, error: errRegistro } = await supabase
+    .rpc('registrar_pedido_pagado', {
+      p_pedido: {
+        nombre_comprador: cliente.nombre,
+        email_comprador: cliente.email,
+        telefono_comprador: cliente.telefono,
+        direccion_envio: { ...direccion } as Json,
+        subtotal: totales.subtotal,
+        igv: totales.igv,
+        costo_envio: totales.envio,
+        total: totales.total,
       },
-      subtotal,
-      igv,
-      costo_envio: envio,
-      total,
-      estado: 'pagado',
+      p_items: lineas.map((l) => ({
+        variante_id: l.varianteId,
+        producto_id: l.productoId,
+        nombre_producto: l.nombre,
+        talla: l.talla,
+        color: l.color,
+        precio_unitario: l.precioUnitario,
+        cantidad: l.cantidad,
+      })),
+      p_pago: {
+        culqi_charge_id: cargoId,
+        culqi_token_id: solicitud.token,
+        monto: totales.total,
+        ultimos_4_digitos: source?.card_number?.slice(-4) ?? null,
+        marca_tarjeta: source?.iin?.card_brand ?? null,
+        respuesta_culqi: cargo.respuesta as Json,
+      },
     })
-    .select('id, numero')
     .single()
 
-  if (errPedido || !pedido) {
-    console.error('Error creando pedido tras cobro exitoso:', errPedido)
+  if (errRegistro || !registrado) {
+    console.error('[cobrar] Cargo cobrado pero el pedido no se registró', { cargoId, errRegistro })
+    const reembolsado = await reembolsarCargo(cargoId, totales.total)
+    if (!reembolsado) console.error('[cobrar] REEMBOLSO FALLIDO, revisar manualmente en Culqi', { cargoId })
     return NextResponse.json(
-      { error: 'Pago procesado pero hubo un error guardando el pedido. Contacta soporte.' },
+      {
+        error: reembolsado
+          ? 'No pudimos registrar tu pedido y anulamos el cobro. Intenta de nuevo.'
+          : 'Tu pago se procesó pero no pudimos registrar el pedido. Escríbenos y lo resolvemos.',
+      },
       { status: 500 }
     )
   }
 
-  // 3. Insertar items
-  await supabase.from('items_pedido').insert(
-    items.map((item) => ({
-      pedido_id: pedido.id,
-      producto_id: item.productoId,
-      variante_id: item.varianteId,
-      nombre_producto: item.nombre,
-      talla: item.talla,
-      color: item.color,
-      precio_unitario: item.precio,
-      cantidad: item.cantidad,
-    }))
+  after(() =>
+    enviarEmailsPedido({
+      id: registrado.id,
+      numero: registrado.numero,
+      nombre_comprador: cliente.nombre,
+      email_comprador: cliente.email,
+      items: lineas.map((l) => ({
+        nombre_producto: l.nombre,
+        talla: l.talla,
+        color: l.color,
+        cantidad: l.cantidad,
+        subtotal: l.precioUnitario * l.cantidad,
+      })),
+      subtotal: totales.subtotal,
+      igv: totales.igv,
+      costo_envio: totales.envio,
+      total: totales.total,
+      direccion,
+    })
   )
 
-  // 4. Descontar stock de cada variante
-  for (const item of items) {
-    const { error: errStock } = await supabase.rpc('descontar_stock', {
-      p_variante_id: item.varianteId,
-      p_cantidad: item.cantidad,
-    })
-    if (errStock) console.error('Stock error:', errStock.message)
-  }
-
-  // 5. Registrar pago
-  await supabase.from('pagos').insert({
-    pedido_id: pedido.id,
-    estado: 'completado',
-    metodo: 'tarjeta',
-    culqi_charge_id: culqiData.id,
-    culqi_token_id: token,
-    monto: total,
-    moneda: 'PEN',
-    ultimos_4_digitos: culqiData.source?.card_number?.slice(-4) ?? null,
-    marca_tarjeta: culqiData.source?.brand ?? null,
-    respuesta_culqi: culqiData,
-  })
-
-  // 6. Enviar emails (no bloqueante — un fallo de email no rompe la respuesta)
-  const itemsEmail = items.map((item) => ({
-    nombre_producto: item.nombre,
-    talla: item.talla,
-    color: item.color,
-    cantidad: item.cantidad,
-    precio_unitario: item.precio,
-    subtotal: item.precio * item.cantidad,
-  }))
-
-  const pedidoEmail = {
-    numero: pedido.numero,
-    nombre_comprador: nombre,
-    email_comprador: email,
-    items: itemsEmail,
-    subtotal,
-    igv,
-    costo_envio: envio,
-    total,
-    direccion: { direccion, distrito, provincia, departamento, referencia: referencia || undefined },
-  }
-
-  Promise.all([
-    enviarConfirmacionPedido(pedidoEmail),
-    enviarNotificacionAdmin(pedidoEmail),
-  ]).catch((err) => console.error('Error enviando emails:', err))
-
-  return NextResponse.json({ numero: pedido.numero })
+  return NextResponse.json({ numero: registrado.numero })
 }

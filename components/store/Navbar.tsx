@@ -1,71 +1,30 @@
-'use client'
-
-import { Link } from 'next-view-transitions'
-import { usePathname } from 'next/navigation'
-import { useCarrito } from '@/lib/carrito'
-
-const links = [
-  { href: '/tienda?genero=mujer', label: 'Mujer' },
-  { href: '/tienda?genero=hombre', label: 'Hombre' },
-  { href: '/tienda?novedad=true', label: 'Novedades', scrollId: 'nuevos-ingresos' },
-  { href: '/tienda', label: 'Colecciones' },
-  { href: '/nosotros', label: 'Nosotros' },
-]
+import Link from 'next/link'
+import { Suspense } from 'react'
+import { NAV_PRINCIPAL } from '@/lib/navigation'
+import BotonCarrito from './BotonCarrito'
+import MenuMovil from './MenuMovil'
+import NavLinks, { NavLinksBase } from './NavLinks'
 
 export default function Navbar() {
-  const pathname = usePathname()
-  const { totalItems } = useCarrito()
-
   return (
-    <header className="bg-white/90 backdrop-blur-md top-0 z-50 border-b border-stone-100 sticky">
-      <nav className="flex justify-between items-center w-full px-8 py-5 max-w-[1920px] mx-auto">
-        {/* Logo */}
-        <Link href="/" className="text-2xl tracking-tighter text-stone-900" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-          ATELIER
-        </Link>
-
-        {/* Links */}
-        <div className="hidden md:flex items-center gap-10">
-          {links.map((link) => {
-            const isHome = pathname === '/'
-            const isActive = (isHome && !!link.scrollId) || pathname === link.href
-
-            const handleClick = isHome && link.scrollId
-              ? (e: React.MouseEvent) => {
-                  e.preventDefault()
-                  document.getElementById(link.scrollId!)?.scrollIntoView({ behavior: 'smooth' })
-                }
-              : undefined
-
-            return (
-              <Link
-                key={link.href}
-                href={isHome && link.scrollId ? '#' : link.scrollId ? `/#${link.scrollId}` : link.href}
-                onClick={handleClick}
-                className={`text-sm uppercase tracking-widest transition-colors ${
-                  isActive
-                    ? 'text-stone-900 border-b border-stone-900 pb-0.5'
-                    : 'text-stone-400 hover:text-stone-900'
-                }`}
-                style={{ fontFamily: 'var(--font-manrope)' }}
-              >
-                {link.label}
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Acciones */}
-        <div className="flex items-center gap-4">
-          <Link href="/carrito" className="relative p-2 transition-colors" aria-label="Carrito">
-            <span className="material-symbols-outlined text-stone-400 hover:text-stone-900 transition-colors">shopping_bag</span>
-            {totalItems > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-stone-900 text-white text-[10px] flex items-center justify-center rounded-full" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {totalItems > 9 ? '9+' : totalItems}
-              </span>
-            )}
+    <header className="sticky top-0 z-50 border-b border-stone-100 bg-white/90 backdrop-blur-md">
+      <nav
+        aria-label="Principal"
+        className="mx-auto flex w-full max-w-[1920px] items-center justify-between px-4 py-4 md:px-8 md:py-5"
+      >
+        <div className="flex items-center gap-2">
+          <MenuMovil enlaces={NAV_PRINCIPAL} />
+          <Link href="/" className="font-serif text-2xl tracking-tighter text-stone-900">
+            ATELIER
           </Link>
         </div>
+
+        {/* useSearchParams necesita Suspense; el fallback son los mismos links sin estado activo. */}
+        <Suspense fallback={<NavLinksBase enlaces={NAV_PRINCIPAL} />}>
+          <NavLinks enlaces={NAV_PRINCIPAL} />
+        </Suspense>
+
+        <BotonCarrito />
       </nav>
     </header>
   )

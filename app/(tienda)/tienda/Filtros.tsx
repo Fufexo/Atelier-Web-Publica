@@ -1,13 +1,9 @@
 'use client'
 
-import { useTransitionRouter } from 'next-view-transitions'
-import { useSearchParams } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useOptimistic, useRef, useTransition } from 'react'
+import Icon from '@/components/ui/Icon'
 import type { Categoria } from '@/lib/types'
-
-interface Props {
-  categorias: Categoria[]
-}
 
 const GENEROS = [
   { value: '', label: 'Todo' },
@@ -16,95 +12,90 @@ const GENEROS = [
   { value: 'unisex', label: 'Unisex' },
 ]
 
-export default function Filtros({ categorias }: Props) {
-  const router = useTransitionRouter()
+type Clave = 'genero' | 'categoria' | 'novedad' | 'q'
+
+/**
+ * Los filtros viven en la URL (compartible, funciona con atrás/adelante).
+ * `useOptimistic` marca el botón al instante mientras el servidor trae los productos.
+ */
+export default function Filtros({ categorias }: { categorias: Categoria[] }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const params = useSearchParams()
+  const [cargando, startTransition] = useTransition()
+  const [optimistas, setOptimistas] = useOptimistic(params.toString())
+  const actuales = new URLSearchParams(optimistas)
+  const busqueda = useRef<HTMLInputElement>(null)
+  const debounce = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const generoActivo = params.get('genero') ?? ''
-  const catActiva = params.get('categoria') ?? ''
-  const novedadActiva = params.get('novedad') === 'true'
-  const busquedaActiva = params.get('q') ?? ''
+  const genero = actuales.get('genero') ?? ''
+  const categoria = actuales.get('categoria') ?? ''
+  const novedad = actuales.get('novedad') === 'true'
+  const hayFiltros = [...actuales.keys()].length > 0
 
-  const [localGenero, setLocalGenero] = useState(generoActivo)
-  const [localCat, setLocalCat] = useState(catActiva)
-  const [localNovedad, setLocalNovedad] = useState(novedadActiva)
-  const [localBusqueda, setLocalBusqueda] = useState(busquedaActiva)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function navegar(cambios: Partial<Record<Clave, string>>) {
+    const siguiente = new URLSearchParams(params.toString())
+    for (const [clave, valor] of Object.entries(cambios)) {
+      if (valor) siguiente.set(clave, valor)
+      else siguiente.delete(clave)
+    }
+    // Novedades y categoría son excluyentes.
+    if (cambios.novedad) siguiente.delete('categoria')
+    if (cambios.categoria) siguiente.delete('novedad')
 
-  useEffect(() => {
-    setLocalGenero(generoActivo)
-    setLocalCat(catActiva)
-    setLocalNovedad(novedadActiva)
-    setLocalBusqueda(busquedaActiva)
-  }, [generoActivo, catActiva, novedadActiva, busquedaActiva])
+    const query = siguiente.toString()
+    startTransition(() => {
+      setOptimistas(query)
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    })
+  }
 
-  function navegar(key: string, value: string) {
-    const next = new URLSearchParams(params.toString())
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key === 'novedad' && value) next.delete('categoria')
-    if (key === 'categoria' && value) next.delete('novedad')
-
-    if (key === 'genero') setLocalGenero(value)
-    if (key === 'categoria') { setLocalCat(value); setLocalNovedad(false) }
-    if (key === 'novedad') { setLocalNovedad(value === 'true'); setLocalCat('') }
-
-    router.push(`/tienda?${next.toString()}`)
+  function buscar(valor: string) {
+    clearTimeout(debounce.current)
+    debounce.current = setTimeout(() => navegar({ q: valor.trim() }), 400)
   }
 
   function limpiar() {
-    setLocalGenero('')
-    setLocalCat('')
-    setLocalNovedad(false)
-    setLocalBusqueda('')
-    router.push('/tienda')
+    clearTimeout(debounce.current)
+    if (busqueda.current) busqueda.current.value = ''
+    startTransition(() => {
+      setOptimistas('')
+      router.push(pathname, { scroll: false })
+    })
   }
 
-  function handleBusqueda(valor: string) {
-    setLocalBusqueda(valor)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      const next = new URLSearchParams(params.toString())
-      if (valor.trim()) next.set('q', valor.trim())
-      else next.delete('q')
-      router.push(`/tienda?${next.toString()}`)
-    }, 400)
-  }
-
-  const hayFiltros = localGenero || localCat || localNovedad || localBusqueda
-
-  const btnClass = (activo: boolean) =>
-    `cursor-pointer shrink-0 text-xs uppercase tracking-widest px-4 py-2 rounded-sm transition-colors duration-150 ${
-      activo ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-900'
+  const chip = (activo: boolean) =>
+    `min-h-9 shrink-0 cursor-pointer rounded-sm px-4 py-2 text-xs tracking-widest uppercase transition-colors duration-150 ${
+      activo ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-900'
     }`
 
   return (
-    <div className="border-b border-stone-200 bg-white">
-      <div className="max-w-7xl mx-auto flex items-center gap-3 px-4 md:px-8 py-3">
-
-        {/* Filtros: scroll horizontal, nunca rompen */}
-        <div className="flex-1 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          <div className="flex items-center gap-1 min-w-max">
+    <div className="border-b border-stone-200 bg-white" aria-busy={cargando}>
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:px-8">
+        <div className="flex-1 scrollbar-none overflow-x-auto">
+          <div className="flex min-w-max items-center gap-1" role="group" aria-label="Filtrar productos">
             {GENEROS.map((g) => (
               <button
                 key={g.value}
-                onClick={() => navegar('genero', g.value)}
-                className={btnClass(localGenero === g.value)}
-                style={{ fontFamily: 'var(--font-manrope)' }}
+                type="button"
+                aria-pressed={genero === g.value}
+                onClick={() => navegar({ genero: g.value })}
+                className={chip(genero === g.value)}
               >
                 {g.label}
               </button>
             ))}
 
-            {!localNovedad && (
+            {!novedad && categorias.length > 0 && (
               <>
-                <div className="w-px h-5 bg-stone-200 mx-2 shrink-0" />
+                <span aria-hidden className="mx-2 h-5 w-px shrink-0 bg-stone-200" />
                 {categorias.map((cat) => (
                   <button
                     key={cat.id}
-                    onClick={() => navegar('categoria', localCat === cat.slug ? '' : cat.slug)}
-                    className={btnClass(localCat === cat.slug)}
-                    style={{ fontFamily: 'var(--font-manrope)' }}
+                    type="button"
+                    aria-pressed={categoria === cat.slug}
+                    onClick={() => navegar({ categoria: categoria === cat.slug ? '' : cat.slug })}
+                    className={chip(categoria === cat.slug)}
                   >
                     {cat.nombre}
                   </button>
@@ -112,44 +103,47 @@ export default function Filtros({ categorias }: Props) {
               </>
             )}
 
-            <div className="w-px h-5 bg-stone-200 mx-2 shrink-0" />
-
+            <span aria-hidden className="mx-2 h-5 w-px shrink-0 bg-stone-200" />
             <button
-              onClick={() => navegar('novedad', localNovedad ? '' : 'true')}
-              className={btnClass(localNovedad)}
-              style={{ fontFamily: 'var(--font-manrope)' }}
+              type="button"
+              aria-pressed={novedad}
+              onClick={() => navegar({ novedad: novedad ? '' : 'true' })}
+              className={chip(novedad)}
             >
               Novedades
             </button>
           </div>
         </div>
 
-        {/* Búsqueda + Limpiar: siempre fijos a la derecha */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="relative">
+        <div className="flex shrink-0 items-center gap-3">
+          <div role="search" className="relative">
+            <label htmlFor="buscar-productos" className="sr-only">
+              Buscar productos
+            </label>
             <input
-              type="text"
-              value={localBusqueda}
-              onChange={(e) => handleBusqueda(e.target.value)}
+              id="buscar-productos"
+              ref={busqueda}
+              type="search"
+              defaultValue={params.get('q') ?? ''}
+              onChange={(e) => buscar(e.target.value)}
               placeholder="Buscar..."
-              className="w-32 md:w-44 border border-stone-200 bg-transparent pl-8 pr-3 py-1.5 text-xs text-stone-700 placeholder:text-stone-300 focus:outline-none focus:border-stone-500 transition-colors"
-              style={{ fontFamily: 'var(--font-manrope)' }}
+              className="w-32 border border-stone-200 bg-transparent py-1.5 pr-3 pl-8 text-base text-stone-700 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none md:w-44 md:text-xs"
             />
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-300 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
+            <Icon
+              name="buscar"
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-stone-400"
+            />
           </div>
           {hayFiltros && (
             <button
+              type="button"
               onClick={limpiar}
-              className="cursor-pointer text-xs text-stone-400 hover:text-stone-700 underline underline-offset-4 transition-colors"
-              style={{ fontFamily: 'var(--font-manrope)' }}
+              className="cursor-pointer text-xs text-stone-500 underline underline-offset-4 transition-colors hover:text-stone-800"
             >
               Limpiar
             </button>
           )}
         </div>
-
       </div>
     </div>
   )

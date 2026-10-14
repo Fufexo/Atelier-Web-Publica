@@ -1,114 +1,115 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Link } from 'next-view-transitions'
-import { createClient } from '@/lib/supabase/server'
-import Navbar from '@/components/store/Navbar'
-import Footer from '@/components/store/Footer'
+import { cache } from 'react'
+import { getProductoPorSlug } from '@/lib/catalogo'
+import { precioFinal } from '@/lib/precios'
+import { SITE_URL } from '@/lib/site'
 import ProductoDetalle from './ProductoDetalle'
-import { formatearPrecio } from '@/lib/utils'
-import type { ImagenProducto, Variante } from '@/lib/types'
 
-interface Props {
-  params: Promise<{ slug: string }>
-}
+// generateMetadata y la página piden el mismo producto: cache() hace una sola consulta.
+const getProducto = cache(getProductoPorSlug)
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: PageProps<'/producto/[slug]'>): Promise<Metadata> {
   const { slug } = await params
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('productos')
-    .select('nombre, descripcion, precio, precio_oferta, imagenes')
-    .eq('slug', slug)
-    .single()
-  if (!data) return { title: 'Producto no encontrado' }
+  const prod = await getProducto(slug)
+  if (!prod) return { title: 'Producto no encontrado' }
 
-  const imagen = (data.imagenes as ImagenProducto[])?.[0]
-  const precio = data.precio_oferta ?? data.precio
-  const descripcion = data.descripcion ?? `Compra ${data.nombre} en ATELIER. Envíos a todo el Perú.`
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
-
+  const imagen = prod.imagenes[0]
+  const descripcion = prod.descripcion ?? `Compra ${prod.nombre} en ATELIER. Envíos a todo el Perú.`
   return {
-    title: data.nombre,
+    title: prod.nombre,
     description: descripcion,
+    alternates: { canonical: `/producto/${slug}` },
     openGraph: {
-      title: data.nombre,
+      title: prod.nombre,
       description: descripcion,
-      url: `${siteUrl}/producto/${slug}`,
-      type: 'website',
-      images: imagen ? [{ url: imagen.url, alt: imagen.alt || data.nombre, width: 800, height: 1067 }] : [],
-    },
-    other: {
-      'product:price:amount': String(precio),
-      'product:price:currency': 'PEN',
+      url: `/producto/${slug}`,
+      images: imagen ? [{ url: imagen.url, alt: imagen.alt || prod.nombre }] : undefined,
     },
   }
 }
 
-export default async function ProductoPage({ params }: Props) {
+export default async function ProductoPage({ params }: PageProps<'/producto/[slug]'>) {
   const { slug } = await params
-  const supabase = await createClient()
-
-  const { data: prod } = await supabase
-    .from('productos')
-    .select('*, categorias(nombre, slug), variantes(*)')
-    .eq('slug', slug)
-    .eq('activo', true)
-    .single()
-
+  const prod = await getProducto(slug)
   if (!prod) notFound()
 
-  const imagenes = (prod.imagenes as ImagenProducto[]) ?? []
-  const variantes = (prod.variantes as Variante[]) ?? []
-  const categoria = prod.categorias as { nombre: string; slug: string } | null
-  const precioMostrar = prod.precio_oferta ?? prod.precio
+  const hayStock = prod.variantes.some((v) => v.stock > 0)
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: prod.nombre,
+    description: prod.descripcion ?? undefined,
+    image: prod.imagenes.map((i) => i.url),
+    sku: prod.sku ?? undefined,
+    category: prod.categoria?.nombre,
+    brand: { '@type': 'Brand', name: 'ATELIER' },
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE_URL}/producto/${slug}`,
+      priceCurrency: 'PEN',
+      price: precioFinal(prod).toFixed(2),
+      availability: hayStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+    },
+  }
 
   return (
-    <>
-      <Navbar />
-      <main className="bg-white min-h-screen">
-        <div className="max-w-7xl mx-auto px-8 py-12">
-
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-stone-400 mb-10" style={{ fontFamily: 'var(--font-manrope)' }}>
-            <Link href="/" className="hover:text-stone-700 transition-colors">Inicio</Link>
-            <span>/</span>
-            <Link href="/tienda" className="hover:text-stone-700 transition-colors">Tienda</Link>
-            {categoria && (
+    <div className="flex-1 bg-white">
+      <script
+        type="application/ld+json"
+        // JSON.stringify no escapa "<": se reemplaza para que un nombre con </script> no rompa la página.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\u003c') }}
+      />
+      <div className="mx-auto max-w-7xl px-6 py-12 md:px-8">
+        <nav aria-label="Ruta de navegación" className="mb-10 text-xs text-stone-500">
+          <ol className="flex flex-wrap items-center gap-2">
+            <li>
+              <Link href="/" className="hover:text-stone-800">
+                Inicio
+              </Link>
+            </li>
+            <li aria-hidden>/</li>
+            <li>
+              <Link href="/tienda" className="hover:text-stone-800">
+                Tienda
+              </Link>
+            </li>
+            {prod.categoria && (
               <>
-                <span>/</span>
-                <Link href={`/tienda?categoria=${categoria.slug}`} className="hover:text-stone-700 transition-colors">
-                  {categoria.nombre}
-                </Link>
+                <li aria-hidden>/</li>
+                <li>
+                  <Link href={`/tienda?categoria=${prod.categoria.slug}`} className="hover:text-stone-800">
+                    {prod.categoria.nombre}
+                  </Link>
+                </li>
               </>
             )}
-            <span>/</span>
-            <span className="text-stone-600">{prod.nombre}</span>
-          </nav>
-
-          {/* Categoría y nombre (server rendered para SEO) */}
-          <div className="mb-8">
-            {categoria && (
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {categoria.nombre}
-              </p>
-            )}
-            <h1 className="text-3xl md:text-4xl text-stone-900 leading-tight" style={{ fontFamily: 'var(--font-noto-serif)' }}>
+            <li aria-hidden>/</li>
+            <li aria-current="page" className="text-stone-700">
               {prod.nombre}
-            </h1>
-          </div>
+            </li>
+          </ol>
+        </nav>
 
-          <ProductoDetalle
-            productoId={prod.id}
-            slug={prod.slug}
-            nombre={prod.nombre}
-            descripcion={prod.descripcion ?? null}
-            precio={prod.precio}
-            precioOferta={prod.precio_oferta}
-            imagenes={imagenes}
-            variantes={variantes}
-          />
+        <div className="mb-8">
+          {prod.categoria && (
+            <p className="mb-2 text-xs tracking-[0.3em] text-stone-500 uppercase">{prod.categoria.nombre}</p>
+          )}
+          <h1 className="font-serif text-3xl leading-tight text-stone-900 md:text-4xl">{prod.nombre}</h1>
         </div>
-      </main>
-      <Footer />
-    </>
+
+        <ProductoDetalle
+          productoId={prod.id}
+          slug={prod.slug}
+          nombre={prod.nombre}
+          descripcion={prod.descripcion}
+          precio={prod.precio}
+          precioOferta={prod.precio_oferta}
+          imagenes={prod.imagenes}
+          variantes={prod.variantes}
+        />
+      </div>
+    </div>
   )
 }

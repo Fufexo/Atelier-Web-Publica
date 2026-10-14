@@ -1,110 +1,91 @@
-import Navbar from '@/components/store/Navbar'
-import Footer from '@/components/store/Footer'
+import Icon, { type NombreIcono } from '@/components/ui/Icon'
+import { CONTACTO } from '@/lib/site'
 
-export const metadata = { title: 'Contacto — Atelier' }
+export const metadata = { title: 'Contacto', description: 'Escríbenos por WhatsApp, correo o Instagram.' }
 
-const canales = [
+const canales: { icon: NombreIcono; titulo: string; descripcion: string; accion: string; href: string }[] = [
   {
     icon: 'chat',
     titulo: 'WhatsApp',
     descripcion: 'Lunes a sábado, 9am – 7pm',
     accion: 'Escribir por WhatsApp',
-    href: 'https://wa.me/51999999999',
+    href: CONTACTO.whatsapp,
   },
   {
-    icon: 'mail',
+    icon: 'correo',
     titulo: 'Correo',
     descripcion: 'Te respondemos en menos de 24 horas',
-    accion: 'contacto@atelier.pe',
-    href: 'mailto:contacto@atelier.pe',
+    accion: CONTACTO.email,
+    href: `mailto:${CONTACTO.email}`,
   },
   {
-    icon: 'photo_camera',
+    icon: 'camara',
     titulo: 'Instagram',
     descripcion: 'Síguenos y escríbenos por DM',
     accion: '@atelier',
-    href: 'https://instagram.com/atelier',
+    href: CONTACTO.instagram,
   },
 ]
 
 export default function ContactoPage() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-1 bg-white">
-        <div className="max-w-2xl mx-auto px-8 py-16">
+    <div className="flex-1 bg-white">
+      <div className="mx-auto max-w-2xl px-6 py-16 md:px-8">
+        <h1 className="mb-2 font-serif text-3xl text-stone-900">Contacto</h1>
+        <p className="mb-12 text-sm text-stone-500">Estamos para ayudarte. Elige el canal que prefieras.</p>
 
-          <h1 className="text-3xl text-stone-900 mb-2" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-            Contacto
-          </h1>
-          <p className="text-sm text-stone-400 mb-12" style={{ fontFamily: 'var(--font-manrope)' }}>
-            Estamos para ayudarte. Elige el canal que prefieras.
-          </p>
-
-          <div className="space-y-4 mb-16">
-            {canales.map((canal) => (
-              <a
-                key={canal.titulo}
-                href={canal.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 p-5 border border-stone-200 hover:border-stone-400 transition-colors group"
-              >
-                <span className="material-symbols-outlined text-stone-300 group-hover:text-stone-600 transition-colors text-2xl shrink-0">
-                  {canal.icon}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-900" style={{ fontFamily: 'var(--font-manrope)' }}>
-                    {canal.titulo}
-                  </p>
-                  <p className="text-xs text-stone-400 mt-0.5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                    {canal.descripcion}
-                  </p>
-                  <p className="text-xs text-stone-500 group-hover:text-stone-900 transition-colors mt-1.5 min-[420px]:hidden" style={{ fontFamily: 'var(--font-manrope)' }}>
-                    {canal.accion}
-                  </p>
-                </div>
-                <span className="hidden min-[420px]:block text-sm text-stone-500 group-hover:text-stone-900 transition-colors shrink-0" style={{ fontFamily: 'var(--font-manrope)' }}>
+        <div className="mb-16 space-y-4">
+          {canales.map((canal) => (
+            <a
+              key={canal.titulo}
+              href={canal.href}
+              target={canal.href.startsWith('http') ? '_blank' : undefined}
+              rel="noopener noreferrer"
+              className="group flex items-center gap-4 border border-stone-200 p-5 transition-colors hover:border-stone-400"
+            >
+              <Icon
+                name={canal.icon}
+                className="size-6 shrink-0 text-stone-300 transition-colors group-hover:text-stone-600"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-stone-900">{canal.titulo}</p>
+                <p className="mt-0.5 text-xs text-stone-500">{canal.descripcion}</p>
+                <p className="mt-1.5 text-xs text-stone-500 transition-colors group-hover:text-stone-900 min-[420px]:hidden">
                   {canal.accion}
-                </span>
-              </a>
+                </p>
+              </div>
+              <span className="hidden shrink-0 text-sm text-stone-500 transition-colors group-hover:text-stone-900 min-[420px]:block">
+                {canal.accion}
+              </span>
+            </a>
+          ))}
+        </div>
+
+        <div className="border-t border-stone-100 pt-10">
+          <h2 className="mb-5 text-xs tracking-widest text-stone-500 uppercase">Preguntas frecuentes</h2>
+          <div className="space-y-6">
+            {[
+              {
+                q: '¿Cuánto demora mi pedido?',
+                a: 'Entre 1 y 7 días hábiles dependiendo de tu distrito. Consulta nuestra página de envíos para más detalles.',
+              },
+              {
+                q: '¿Puedo cambiar o devolver un producto?',
+                a: 'Sí, tienes 7 días desde la recepción. Revisa nuestra política de devoluciones.',
+              },
+              {
+                q: '¿Cómo sé qué talla elegir?',
+                a: 'Consulta nuestra guía de tallas o escríbenos y te ayudamos a elegir.',
+              },
+            ].map((faq) => (
+              <div key={faq.q}>
+                <p className="mb-1 text-sm font-medium text-stone-900">{faq.q}</p>
+                <p className="text-sm leading-relaxed text-stone-500">{faq.a}</p>
+              </div>
             ))}
           </div>
-
-          <div className="border-t border-stone-100 pt-10">
-            <h2 className="text-xs uppercase tracking-widest text-stone-400 mb-5" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Preguntas frecuentes
-            </h2>
-            <div className="space-y-6">
-              {[
-                {
-                  q: '¿Cuánto demora mi pedido?',
-                  a: 'Entre 1 y 7 días hábiles dependiendo de tu distrito. Consulta nuestra página de envíos para más detalles.',
-                },
-                {
-                  q: '¿Puedo cambiar o devolver un producto?',
-                  a: 'Sí, tienes 7 días desde la recepción. Revisa nuestra política de devoluciones.',
-                },
-                {
-                  q: '¿Cómo sé qué talla elegir?',
-                  a: 'Consulta nuestra guía de tallas o escríbenos y te ayudamos a elegir.',
-                },
-              ].map((faq) => (
-                <div key={faq.q}>
-                  <p className="text-sm font-medium text-stone-900 mb-1" style={{ fontFamily: 'var(--font-manrope)' }}>
-                    {faq.q}
-                  </p>
-                  <p className="text-sm text-stone-500 leading-relaxed" style={{ fontFamily: 'var(--font-manrope)' }}>
-                    {faq.a}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
-      </main>
-      <Footer />
+      </div>
     </div>
   )
 }

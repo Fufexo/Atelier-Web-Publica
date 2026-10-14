@@ -1,57 +1,42 @@
-import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
-import "./globals.css";
-import { CarritoProvider } from "@/lib/carrito";
-import { ViewTransitions } from "next-view-transitions";
-import ViewTransitionGuard from "@/components/store/ViewTransitionGuard";
+import type { Metadata, Viewport } from 'next'
+import { Inter, Playfair_Display } from 'next/font/google'
+import './globals.css'
+import { SITE_URL } from '@/lib/site'
 
 const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-noto-serif",
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-});
+  subsets: ['latin'],
+  variable: '--font-playfair',
+  style: ['normal', 'italic'],
+  display: 'swap',
+})
 
 const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-manrope",
-});
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: { default: 'ATELIER', template: '%s — ATELIER' },
-  description: 'Tienda de ropa online en Perú. Moda para mujer, hombre y unisex.',
-  metadataBase: new URL(siteUrl || 'http://localhost:3000'),
+  metadataBase: new URL(SITE_URL),
+  title: { default: 'ATELIER — Moda contemporánea', template: '%s — ATELIER' },
+  description: 'Tienda de ropa online en Perú. Moda para mujer, hombre y unisex con envíos a todo el país.',
   openGraph: {
     siteName: 'ATELIER',
     locale: 'es_PE',
     type: 'website',
+    images: [{ url: '/hero-fashion.jpg', width: 1200, height: 630, alt: 'ATELIER — Nueva colección' }],
   },
-  twitter: {
-    card: 'summary_large_image',
-  },
-};
+  twitter: { card: 'summary_large_image' },
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: '#fcf9f4',
+}
+
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <ViewTransitions>
-      <html lang="es" className={`${playfair.variable} ${inter.variable} scroll-smooth`}>
-        <head>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-          />
-        </head>
-        <body className="bg-[#fcf9f4] text-[#1c1c19]">
-          <ViewTransitionGuard />
-          <CarritoProvider>{children}</CarritoProvider>
-        </body>
-      </html>
-    </ViewTransitions>
-  );
+    <html lang="es-PE" className={`${playfair.variable} ${inter.variable} scroll-smooth`}>
+      <body>{children}</body>
+    </html>
+  )
 }
