@@ -127,6 +127,8 @@ export async function getProductoPorSlug(slug: string): Promise<ProductoDetalle 
     .select('*, categorias(nombre, slug), variantes(*)')
     .eq('slug', slug)
     .eq('activo', true)
+    // El orden define qué foto corresponde a cada color ("imagen 1 = primer color").
+    .order('orden', { referencedTable: 'variantes' })
     .maybeSingle()
 
   if (error) throw new Error(`No se pudo cargar el producto: ${error.message}`)

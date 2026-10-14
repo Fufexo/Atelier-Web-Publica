@@ -11,7 +11,12 @@ export default async function EditarProductoPage({ params }: PageProps<'/admin/p
   const { supabase } = await requireAdmin()
 
   const [{ data: producto }, { data: categorias }] = await Promise.all([
-    supabase.from('productos').select('*, variantes(*)').eq('id', id).maybeSingle(),
+    supabase
+      .from('productos')
+      .select('*, variantes(*)')
+      .eq('id', id)
+      .order('orden', { referencedTable: 'variantes' })
+      .maybeSingle(),
     supabase.from('categorias').select('id, nombre').order('orden'),
   ])
   if (!producto) notFound()

@@ -404,6 +404,7 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
+          orden: number
           producto_id: string
           sku_variante: string | null
           stock: number
@@ -414,6 +415,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          orden?: number
           producto_id: string
           sku_variante?: string | null
           stock?: number
@@ -424,6 +426,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          orden?: number
           producto_id?: string
           sku_variante?: string | null
           stock?: number
