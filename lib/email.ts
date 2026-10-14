@@ -167,13 +167,66 @@ export function htmlNotificacionAdmin(pedido: PedidoEmail): string {
 
 // ── Envío ───────────────────────────────────────────────────────────────────
 
+export interface Mensaje {
+  to: string
+  subject: string
+  html: string
+}
+
+export type Proveedor =
+  | { tipo: 'gmail'; usuario: string; clave: string; from: string }
+  | { tipo: 'resend'; apiKey: string; from: string }
+  | { tipo: 'ninguno' }
+
 /**
- * Remitente. `onboarding@resend.dev` solo entrega al dueño de la cuenta de Resend:
- * para que los clientes reciban su confirmación hay que verificar un dominio y
- * configurar EMAIL_FROM (ej. "ATELIER <pedidos@atelier.pe>").
+ * Elige cómo enviar según las variables de entorno:
+ * - Gmail (GMAIL_USER + GMAIL_APP_PASSWORD): gratis y entrega a cualquier destinatario.
+ * - Resend (RESEND_API_KEY): con `onboarding@resend.dev` solo entrega al dueño de la
+ *   cuenta; para clientes hay que verificar un dominio y configurar EMAIL_FROM.
  */
-function remitente() {
-  return process.env.EMAIL_FROM ?? 'ATELIER <onboarding@resend.dev>'
+export function elegirProveedor(env: Record<string, string | undefined>): Proveedor {
+  if (env.GMAIL_USER && env.GMAIL_APP_PASSWORD) {
+    return {
+      tipo: 'gmail',
+      usuario: env.GMAIL_USER,
+      // Google muestra la contraseña de aplicación en grupos con espacios.
+      clave: env.GMAIL_APP_PASSWORD.replace(/\s/g, ''),
+      from: env.EMAIL_FROM ?? `ATELIER <${env.GMAIL_USER}>`,
+    }
+  }
+  if (env.RESEND_API_KEY) {
+    return {
+      tipo: 'resend',
+      apiKey: env.RESEND_API_KEY,
+      from: env.EMAIL_FROM ?? 'ATELIER <onboarding@resend.dev>',
+    }
+  }
+  return { tipo: 'ninguno' }
+}
+
+/**
+ * Crea la función de envío. Los clientes se instancian aquí y no a nivel de
+ * módulo: sin las variables de entorno el build de Vercel fallaría.
+ */
+async function crearEnviador(proveedor: Proveedor): Promise<((m: Mensaje) => Promise<void>) | null> {
+  if (proveedor.tipo === 'gmail') {
+    const { createTransport } = await import('nodemailer')
+    const transporte = createTransport({
+      service: 'gmail',
+      auth: { user: proveedor.usuario, pass: proveedor.clave },
+    })
+    return async (m) => {
+      await transporte.sendMail({ from: proveedor.from, replyTo: proveedor.usuario, ...m })
+    }
+  }
+  if (proveedor.tipo === 'resend') {
+    const resend = new Resend(proveedor.apiKey)
+    return async (m) => {
+      const { error } = await resend.emails.send({ from: proveedor.from, ...m })
+      if (error) throw new Error(`Resend: ${error.message}`)
+    }
+  }
+  return null
 }
 
 /**
@@ -181,30 +234,29 @@ function remitente() {
  * fallido no debe convertir una venta cobrada en un error para el cliente.
  */
 export async function enviarEmailsPedido(pedido: PedidoEmail): Promise<void> {
-  // Se instancia aquí y no a nivel de módulo: sin RESEND_API_KEY el build de Vercel falla.
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  const envios = [
-    resend.emails.send({
-      from: remitente(),
+  const enviar = await crearEnviador(elegirProveedor(process.env))
+  if (!enviar) {
+    console.warn('[email] Sin proveedor configurado (GMAIL_* o RESEND_API_KEY): no se envían emails')
+    return
+  }
+
+  const mensajes: Mensaje[] = [
+    {
       to: pedido.email_comprador,
       subject: `ATELIER — Confirmación de pedido ${numeroPedido(pedido.numero)}`,
       html: htmlConfirmacion(pedido),
-    }),
+    },
   ]
   if (process.env.EMAIL_ADMIN) {
-    envios.push(
-      resend.emails.send({
-        from: remitente(),
-        to: process.env.EMAIL_ADMIN,
-        subject: `Nuevo pedido ${numeroPedido(pedido.numero)} — ${pedido.nombre_comprador} (${formatearPrecio(pedido.total)})`,
-        html: htmlNotificacionAdmin(pedido),
-      })
-    )
+    mensajes.push({
+      to: process.env.EMAIL_ADMIN,
+      subject: `Nuevo pedido ${numeroPedido(pedido.numero)} — ${pedido.nombre_comprador} (${formatearPrecio(pedido.total)})`,
+      html: htmlNotificacionAdmin(pedido),
+    })
   }
 
-  const resultados = await Promise.allSettled(envios)
-  for (const r of resultados) {
-    if (r.status === 'rejected') console.error('[email] Error enviando email de pedido', r.reason)
-    else if (r.value.error) console.error('[email] Resend rechazó el email', r.value.error)
-  }
+  const resultados = await Promise.allSettled(mensajes.map(enviar))
+  resultados.forEach((r, i) => {
+    if (r.status === 'rejected') console.error(`[email] No se pudo enviar a ${mensajes[i].to}`, r.reason)
+  })
 }
