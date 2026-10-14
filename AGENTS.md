@@ -79,7 +79,7 @@ Tablas: `admins`, `perfiles`, `categorias`, `productos`, `variantes`, `pedidos`,
 - Links de navegación: `NAV_PRINCIPAL`, `NAV_TIENDA`, `NAV_AYUDA` de `lib/navigation.ts`.
 
 ### Emails
-Instanciar `Resend` dentro de la función, nunca a nivel de módulo (rompe el build de Vercel sin la variable).
+`lib/email.ts` elige el proveedor con `elegirProveedor()`: Gmail (nodemailer, `GMAIL_USER` + `GMAIL_APP_PASSWORD`) si está configurado, si no Resend. Los clientes de envío se crean dentro de la función, nunca a nivel de módulo (rompe el build de Vercel sin las variables).
 
 ### Antes de terminar un cambio
 `npm run check` (lint + tipos + tests) y `npm run format`. Si tocaste lógica de `lib/`, agrega o actualiza su `*.test.ts`.
@@ -98,4 +98,4 @@ Instanciar `Resend` dentro de la función, nunca a nivel de módulo (rompe el bu
 
 ## Variables de entorno
 
-Ver `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_CULQI_PUBLIC_KEY`, `CULQI_SECRET_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_ADMIN`, `NEXT_PUBLIC_SITE_URL`.
+Ver `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_CULQI_PUBLIC_KEY`, `CULQI_SECRET_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` (o `RESEND_API_KEY` + `EMAIL_FROM`), `EMAIL_ADMIN`, `NEXT_PUBLIC_SITE_URL`.
