@@ -50,12 +50,14 @@ export async function guardarProducto(id: string | null, input: ProductoInput): 
 /**
  * Actualiza las variantes existentes, crea las nuevas y borra las quitadas.
  * Mantener los IDs evita romper carritos abiertos y el vínculo de pedidos anteriores.
+ * Cada variante guarda su posición en el editor: de ella depende qué foto toca a cada color.
  */
 async function sincronizarVariantes(
   supabase: SupabaseServerClient,
   productoId: string,
-  variantes: ReturnType<typeof productoSchema.parse>['variantes']
+  enEditor: ReturnType<typeof productoSchema.parse>['variantes']
 ): Promise<string | null> {
+  const variantes = enEditor.map((v, orden) => ({ ...v, orden }))
   const { data: actuales, error } = await supabase
     .from('variantes')
     .select('id')

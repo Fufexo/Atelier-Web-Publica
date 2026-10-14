@@ -70,7 +70,7 @@ E-commerce de moda para el mercado peruano: catálogo con filtros, carrito, chec
 - **Una capa de datos tipada.** Las consultas de la tienda viven en `lib/catalogo.ts`; los clientes de Supabase usan el tipo `Database` generado desde el esquema, y las columnas JSONB (`imagenes`, `direccion_envio`) se validan al leerlas.
 - **Lógica de negocio pura y testeada.** IGV y totales, tarifas de envío, carrito, armado del pedido, fechas en hora de Lima y analíticas son funciones sin React ni red; los componentes solo las muestran.
 - **Carrito como store externo.** `useSyncExternalStore` sobre `localStorage` reemplaza el patrón "leer en `useEffect` y hacer `setState`", que en StrictMode podía pisar el carrito guardado con uno vacío.
-- **Variantes con identidad estable.** Editar un producto actualiza sus variantes por `id` en vez de borrarlas y recrearlas, así no se rompen carritos abiertos ni el vínculo de pedidos anteriores.
+- **Variantes con identidad estable.** Editar un producto actualiza sus variantes por `id` en vez de borrarlas y recrearlas, así no se rompen carritos abiertos ni el vínculo de pedidos anteriores. Cada variante guarda además su posición (`orden`): de ella depende qué foto corresponde a cada color, y no cambia aunque se venda stock.
 - **Componentes reutilizables.** Primitivas en `components/ui` (`Icon`, `boton()`, `Field`, `QuantityStepper`, `PageHeader`, `EmptyState`), piezas de tienda (`ProductCard`, `ProductGrid`, `ResumenTotales`, `PaginaInfo`) y del panel (`Card`, badges de estado). Un layout por sección (`app/(tienda)`, `app/admin`) evita repetir la estructura en cada página.
 - **Animación sin JavaScript.** Las apariciones al hacer scroll son CSS (`animation-timeline: view()`): el contenido llega visible en el HTML y, sin soporte o con movimiento reducido, simplemente no se anima.
 - **Rendimiento.** `next/image` (AVIF/WebP, `sizes`, `preload` en el hero), íconos SVG inline en vez de una fuente de íconos externa, fuentes con `next/font`, y `proxy.ts` limitado a `/admin` y `/login`, así la tienda pública no consulta Auth en cada request.
@@ -80,6 +80,7 @@ E-commerce de moda para el mercado peruano: catálogo con filtros, carrito, chec
 ## Calidad
 
 - **42 tests unitarios** (Vitest): IGV y totales, envíos, carrito (incluida la sincronización con el servidor), armado del pedido y esquema del checkout, escape de HTML y proveedor de emails, fechas en Lima, analíticas, navegación y parseo de JSONB.
+- **Prueba de punta a punta** contra un Supabase local (`supabase start`) con Culqi en modo prueba: login y permisos, alta de producto con fotos y variantes, compra con tarjeta de prueba, stock, total manipulado, precio cambiado durante el pago, reembolso automático si falla el registro, gestión del pedido y borrado.
 - **Migraciones probadas contra un Postgres real**: políticas de admin y no admin, Storage, la transacción del pedido (incluido el rollback por falta de stock) e idempotencia.
 - **axe-core** (WCAG 2.1 AA): 0 violaciones en inicio, tienda, producto, carrito y checkout. Labels conectados, foco visible, menú con <kbd>Esc</kbd> y retorno del foco, enlace "saltar al contenido".
 - **CI** en GitHub Actions en cada push: formato, lint, tipos, tests y build.
@@ -116,7 +117,7 @@ lib/
 ├── auth.ts                # requireAdmin()
 ├── precios.ts  envios.ts  pedidos.ts  format.ts  analiticas.ts
 └── culqi.ts  email.ts  navigation.ts  site.ts  types.ts
-supabase/migrations/       # 001 → 008
+supabase/migrations/       # 001 → 009
 ```
 
 ## Correr el proyecto
