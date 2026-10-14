@@ -1,52 +1,32 @@
-'use client'
-
-import { useEffect, useRef, useState } from 'react'
-
 interface Props {
   children: React.ReactNode
   className?: string
+  /** `scroll`: aparece al entrar en pantalla. `carga`: al cargar la página (hero). */
+  modo?: 'scroll' | 'carga'
+  direction?: 'up' | 'left' | 'right'
   delay?: number
-  direction?: 'up' | 'left' | 'right' | 'none'
 }
 
-export default function Reveal({ children, className = '', delay = 0, direction = 'up' }: Props) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+const DESPLAZAMIENTO = {
+  up: { '--reveal-x': '0', '--reveal-y': '28px' },
+  left: { '--reveal-x': '-28px', '--reveal-y': '0' },
+  right: { '--reveal-x': '28px', '--reveal-y': '0' },
+}
 
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.12 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
-  const translate: Record<string, string> = {
-    up: 'translateY(28px)',
-    left: 'translateX(-28px)',
-    right: 'translateX(28px)',
-    none: 'none',
-  }
-
+/**
+ * Animación de aparición en CSS (ver `.reveal` en globals.css). Es un Server
+ * Component: el contenido llega visible en el HTML y no depende de hidratar.
+ */
+export default function Reveal({
+  children,
+  className = '',
+  modo = 'scroll',
+  direction = 'up',
+  delay = 0,
+}: Props) {
+  const style: Record<string, string> = { ...DESPLAZAMIENTO[direction], '--reveal-delay': `${delay}ms` }
   return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'none' : translate[direction],
-        transition: `opacity 0.75s ease ${delay}ms, transform 0.75s ease ${delay}ms`,
-        willChange: 'opacity, transform',
-      }}
-    >
+    <div className={`${modo === 'carga' ? 'reveal-carga' : 'reveal'} ${className}`} style={style}>
       {children}
     </div>
   )

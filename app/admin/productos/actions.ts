@@ -1,157 +1,125 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { ImagenProducto } from '@/lib/types'
+import { requireAdmin } from '@/lib/auth'
+import type { SupabaseServerClient } from '@/lib/supabase/server'
+import { productoSchema, type ProductoInput } from './schema'
 
-export interface VarianteInput {
-  talla: string
-  color: string
-  stock: number
-  sku_variante: string
-  activa: boolean
+export type ResultadoAccion = { error: string } | undefined
+
+const BUCKET = 'productos'
+
+/** Revalida el panel y las páginas públicas que muestran productos. */
+function revalidarProductos(slug?: string) {
+  revalidatePath('/admin/productos')
+  revalidatePath('/')
+  revalidatePath('/tienda')
+  if (slug) revalidatePath(`/producto/${slug}`)
 }
 
-export interface ProductoInput {
-  nombre: string
-  slug: string
-  descripcion: string
-  precio: number
-  precio_oferta: number | null
-  categoria_id: string | null
-  sku: string | null
-  orden: number
-  imagenes: ImagenProducto[]
-  activo: boolean
-  destacado: boolean
-  genero: 'hombre' | 'mujer' | 'unisex'
-  variantes: VarianteInput[]
+function mensajeError(error: { code?: string; message: string }): string {
+  if (error.code === '23505') return 'Ya existe un producto con ese slug o SKU.'
+  return `No se pudo guardar: ${error.message}`
 }
 
-export async function crearProducto(data: ProductoInput) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export async function guardarProducto(id: string | null, input: ProductoInput): Promise<ResultadoAccion> {
+  const { supabase } = await requireAdmin()
 
-  const { data: producto, error } = await supabase
-    .from('productos')
-    .insert({
-      nombre: data.nombre,
-      slug: data.slug,
-      descripcion: data.descripcion || null,
-      precio: data.precio,
-      precio_oferta: data.precio_oferta,
-      categoria_id: data.categoria_id,
-      sku: data.sku || null,
-      orden: data.orden,
-      imagenes: data.imagenes,
-      activo: data.activo,
-      destacado: data.destacado,
-      genero: data.genero,
-    })
-    .select()
-    .single()
+  const parsed = productoSchema.safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  const { variantes, ...producto } = parsed.data
 
-  if (error) return { error: error.message }
-
-  if (data.variantes.length > 0) {
-    const { error: errVar } = await supabase.from('variantes').insert(
-      data.variantes.map((v) => ({ ...v, producto_id: producto.id }))
-    )
-    if (errVar) return { error: errVar.message }
+  let productoId = id
+  if (id) {
+    const { error } = await supabase.from('productos').update(producto).eq('id', id)
+    if (error) return { error: mensajeError(error) }
+  } else {
+    const { data, error } = await supabase.from('productos').insert(producto).select('id').single()
+    if (error) return { error: mensajeError(error) }
+    productoId = data.id
   }
 
-  revalidatePath('/admin/productos')
+  const errorVariantes = await sincronizarVariantes(supabase, productoId!, variantes)
+  if (errorVariantes) return { error: errorVariantes }
+
+  revalidarProductos(producto.slug)
   redirect('/admin/productos')
 }
 
-export async function actualizarProducto(id: string, data: ProductoInput) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+/**
+ * Actualiza las variantes existentes, crea las nuevas y borra las quitadas.
+ * Mantener los IDs evita romper carritos abiertos y el vínculo de pedidos anteriores.
+ */
+async function sincronizarVariantes(
+  supabase: SupabaseServerClient,
+  productoId: string,
+  variantes: ReturnType<typeof productoSchema.parse>['variantes']
+): Promise<string | null> {
+  const { data: actuales, error } = await supabase
+    .from('variantes')
+    .select('id')
+    .eq('producto_id', productoId)
+  if (error) return mensajeError(error)
 
-  const { error } = await supabase
-    .from('productos')
-    .update({
-      nombre: data.nombre,
-      slug: data.slug,
-      descripcion: data.descripcion || null,
-      precio: data.precio,
-      precio_oferta: data.precio_oferta,
-      categoria_id: data.categoria_id,
-      sku: data.sku || null,
-      orden: data.orden,
-      imagenes: data.imagenes,
-      activo: data.activo,
-      destacado: data.destacado,
-      genero: data.genero,
-    })
-    .eq('id', id)
-
-  if (error) return { error: error.message }
-
-  // Re-insertar variantes
-  await supabase.from('variantes').delete().eq('producto_id', id)
-  if (data.variantes.length > 0) {
-    const { error: errVar } = await supabase.from('variantes').insert(
-      data.variantes.map((v) => ({ ...v, producto_id: id }))
-    )
-    if (errVar) return { error: errVar.message }
+  const conservar = new Set(variantes.flatMap((v) => (v.id ? [v.id] : [])))
+  const borrar = actuales.map((v) => v.id).filter((vid) => !conservar.has(vid))
+  if (borrar.length) {
+    const { error: e } = await supabase.from('variantes').delete().in('id', borrar)
+    if (e) return mensajeError(e)
   }
 
-  revalidatePath('/admin/productos')
-  revalidatePath(`/admin/productos/${id}`)
-  redirect('/admin/productos')
+  const existentes = variantes.filter((v) => v.id)
+  if (existentes.length) {
+    const { error: e } = await supabase
+      .from('variantes')
+      .upsert(existentes.map((v) => ({ ...v, id: v.id!, producto_id: productoId })))
+    if (e) return mensajeError(e)
+  }
+
+  const nuevas = variantes.filter((v) => !v.id)
+  if (nuevas.length) {
+    const { error: e } = await supabase
+      .from('variantes')
+      .insert(nuevas.map((v) => ({ ...v, producto_id: productoId })))
+    if (e) return mensajeError(e)
+  }
+  return null
 }
 
-export async function toggleActivo(id: string, activo: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase.from('productos').update({ activo: !activo }).eq('id', id)
-  revalidatePath('/admin/productos')
+export async function toggleActivo(id: string, activo: boolean): Promise<void> {
+  const { supabase } = await requireAdmin()
+  const { error } = await supabase.from('productos').update({ activo: !activo }).eq('id', id)
+  if (error) throw new Error(mensajeError(error))
+  revalidarProductos()
 }
 
-function extraerRuta(url: string): string {
-  const marker = '/public/productos/'
-  const idx = url.indexOf(marker)
-  return idx >= 0 ? decodeURIComponent(url.slice(idx + marker.length)) : ''
+function rutaEnBucket(url: string): string | null {
+  const marca = `/public/${BUCKET}/`
+  const i = url.indexOf(marca)
+  return i >= 0 ? decodeURIComponent(url.slice(i + marca.length)) : null
 }
 
-async function eliminarImagenesStorage(supabase: Awaited<ReturnType<typeof createClient>>, imagenes: unknown) {
-  if (!Array.isArray(imagenes) || imagenes.length === 0) return
-  const rutas = (imagenes as { url: string }[])
-    .map((img) => extraerRuta(img.url))
-    .filter(Boolean)
-  if (rutas.length) await supabase.storage.from('productos').remove(rutas)
-}
-
-export async function eliminarProducto(id: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: prod } = await supabase.from('productos').select('imagenes').eq('id', id).single()
-  if (prod) await eliminarImagenesStorage(supabase, prod.imagenes)
-
-  await supabase.from('productos').delete().eq('id', id)
-  revalidatePath('/admin/productos')
-  redirect('/admin/productos')
-}
-
-export async function eliminarProductos(ids: string[]) {
+export async function eliminarProductos(ids: string[]): Promise<void> {
   if (!ids.length) return
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { supabase } = await requireAdmin()
 
   const { data: prods } = await supabase.from('productos').select('imagenes').in('id', ids)
-  if (prods) {
-    for (const prod of prods) await eliminarImagenesStorage(supabase, prod.imagenes)
-  }
+  const { error } = await supabase.from('productos').delete().in('id', ids)
+  if (error) throw new Error(mensajeError(error))
 
-  await supabase.from('productos').delete().in('id', ids)
-  revalidatePath('/admin/productos')
+  // Las imágenes se borran después: si falla el borrado del producto, no quedan rotas.
+  const rutas = (prods ?? [])
+    .flatMap((p) => (Array.isArray(p.imagenes) ? p.imagenes : []))
+    .flatMap((img) =>
+      img && typeof img === 'object' && 'url' in img && typeof img.url === 'string' ? [img.url] : []
+    )
+    .flatMap((url) => rutaEnBucket(url) ?? [])
+  if (rutas.length) await supabase.storage.from(BUCKET).remove(rutas)
+
+  revalidarProductos()
+}
+
+export async function eliminarProducto(id: string): Promise<void> {
+  await eliminarProductos([id])
 }

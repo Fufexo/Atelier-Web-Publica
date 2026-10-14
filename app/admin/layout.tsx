@@ -1,26 +1,21 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import type { Metadata } from 'next'
 import Sidebar from '@/components/admin/Sidebar'
 import ThemeProvider from '@/components/admin/ThemeProvider'
+import { requireAdmin } from '@/lib/auth'
 
-export const metadata = { title: 'Admin — Tienda de Ropa' }
+export const metadata: Metadata = {
+  title: { default: 'Admin', template: '%s — Admin ATELIER' },
+  robots: { index: false, follow: false },
+}
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
+export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
+  // proxy.ts ya exige sesión; aquí además se exige ser admin.
+  await requireAdmin()
 
   return (
     <ThemeProvider>
       <Sidebar />
-      <main className="flex-1 overflow-auto text-gray-900">
-        {children}
-      </main>
+      <main className="flex-1 overflow-auto text-gray-900">{children}</main>
     </ThemeProvider>
   )
 }

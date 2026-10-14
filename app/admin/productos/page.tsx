@@ -1,61 +1,69 @@
-import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { AdminHeader, Alerta, botonAdmin, Card } from '@/components/admin/ui'
+import { requireAdmin } from '@/lib/auth'
+import { calcularStockTotal, STOCK_BAJO } from '@/lib/pedidos'
+import { parsearImagenes } from '@/lib/types'
 import TablaProductos from './TablaProductos'
-import { calcularStockTotal } from '@/lib/utils'
 
-export const metadata = { title: 'Productos — Admin' }
+export const metadata = { title: 'Productos' }
 
 export default async function ProductosPage() {
-  const supabase = await createClient()
-
-  const { data: productos } = await supabase
+  const { supabase } = await requireAdmin()
+  const { data, error } = await supabase
     .from('productos')
-    .select('*, categorias(nombre), variantes(stock)')
+    .select(
+      'id, nombre, sku, precio, precio_oferta, activo, destacado, imagenes, categorias(nombre), variantes(stock)'
+    )
+    .order('orden')
     .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
 
-  const alertas = (productos ?? []).filter((p) => calcularStockTotal(p.variantes) <= 5)
+  const productos = data.map((p) => ({
+    ...p,
+    imagen: parsearImagenes(p.imagenes)[0]?.url ?? null,
+    categoria: p.categorias?.nombre ?? null,
+    stock: calcularStockTotal(p.variantes),
+  }))
+  const alertas = productos.filter((p) => p.activo && p.stock <= STOCK_BAJO)
 
   return (
     <div className="p-8">
       {alertas.length > 0 && (
-        <div className="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-          <svg className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
-          <p className="text-sm text-amber-700">
-            <span className="font-semibold">{alertas.length} {alertas.length === 1 ? 'producto' : 'productos'} con stock bajo o agotado:</span>{' '}
+        <div className="mb-6">
+          <Alerta tono="aviso">
+            <strong>
+              {alertas.length} {alertas.length === 1 ? 'producto activo' : 'productos activos'} con stock bajo
+              o agotado:
+            </strong>{' '}
             {alertas.map((p) => p.nombre).join(', ')}
-          </p>
+          </Alerta>
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Productos
-          {productos?.length ? (
-            <span className="ml-2 text-sm font-normal text-gray-400">{productos.length} en total</span>
-          ) : null}
-        </h1>
-        <Link
-          href="/admin/productos/nuevo"
-          className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Nuevo producto
+      <AdminHeader
+        titulo={
+          <>
+            Productos
+            {productos.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-gray-500">{productos.length} en total</span>
+            )}
+          </>
+        }
+      >
+        <Link href="/admin/productos/nuevo" className={botonAdmin}>
+          + Nuevo producto
         </Link>
-      </div>
+      </AdminHeader>
 
-      {!productos?.length ? (
-        <div className="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
-          <p className="text-gray-400 text-sm mb-4">Aún no tienes productos.</p>
+      {productos.length === 0 ? (
+        <Card className="px-6 py-16 text-center">
+          <p className="mb-4 text-sm text-gray-500">Aún no tienes productos.</p>
           <Link href="/admin/productos/nuevo" className="text-sm font-medium text-slate-700 underline">
             Crear el primero
           </Link>
-        </div>
+        </Card>
       ) : (
-        <TablaProductos productos={productos as Parameters<typeof TablaProductos>[0]['productos']} />
+        <TablaProductos productos={productos} />
       )}
     </div>
   )

@@ -1,78 +1,49 @@
-import { Link } from 'next-view-transitions'
-import { NAV_TIENDA, NAV_AYUDA } from '@/lib/navigation'
+import Link from 'next/link'
+import { NAV_AYUDA, NAV_TIENDA } from '@/lib/navigation'
+
+const COLUMNAS = [
+  { titulo: 'Tienda', enlaces: NAV_TIENDA },
+  { titulo: 'Ayuda', enlaces: NAV_AYUDA },
+]
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-[#25211f] text-[#efe8dc]/80">
-      <div className="max-w-7xl mx-auto px-6 py-10 md:px-14 md:py-16">
-
-        {/* ── Mobile layout ── */}
-        <div className="md:hidden space-y-8">
-          {/* Marca */}
-          <div>
-            <h3 className="text-xl font-semibold text-[#efe8dc] mb-2" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-              ATELIER
-            </h3>
-            <p className="text-xs leading-relaxed text-[#d4c7b5]" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Moda contemporánea con esencia atemporal.
-            </p>
-          </div>
-
-          {/* Links en 2 columnas */}
-          <div className="grid grid-cols-2 gap-6">
-            {[{ title: 'Tienda', items: NAV_TIENDA }, { title: 'Ayuda', items: NAV_AYUDA }].map(({ title, items }) => (
-              <div key={title}>
-                <h4 className="text-[10px] uppercase tracking-widest text-[#9b9083] mb-3" style={{ fontFamily: 'var(--font-manrope)' }}>
-                  {title}
-                </h4>
-                <ul className="space-y-2.5" style={{ fontFamily: 'var(--font-manrope)' }}>
-                  {items.map((item) => (
-                    <li key={item.label}>
-                      <Link href={item.href} className="text-sm text-[#efe8dc]">{item.label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-        </div>
-
-        {/* ── Desktop layout (sin cambios) ── */}
-        <div className="hidden md:grid grid-cols-3 gap-12">
-          <div>
-            <h3 className="text-2xl font-semibold text-[#efe8dc] mb-4" style={{ fontFamily: 'var(--font-noto-serif)' }}>
-              ATELIER
-            </h3>
-            <p className="text-sm leading-relaxed text-[#d4c7b5] max-w-xs" style={{ fontFamily: 'var(--font-manrope)' }}>
-              Moda contemporánea con esencia atemporal. Calidad y diseño en cada prenda.
-            </p>
-          </div>
-
-          {[{ title: 'Tienda', items: NAV_TIENDA }, { title: 'Ayuda', items: NAV_AYUDA }].map(({ title, items }) => (
-            <div key={title}>
-              <h4 className="text-xs uppercase tracking-widest text-[#9b9083] mb-4" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {title}
-              </h4>
-              <ul className="space-y-2" style={{ fontFamily: 'var(--font-manrope)' }}>
-                {items.map((item) => (
-                  <li key={item.label}>
-                    <Link href={item.href} className="text-[#efe8dc] hover:text-white transition-colors">{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-
-        </div>
-
-        {/* Copyright */}
-        <div className="mt-10 md:mt-12 pt-6 md:pt-8 border-t border-[#3f3934] text-center">
-          <p className="text-xs text-[#9b9083]" style={{ fontFamily: 'var(--font-manrope)' }}>
-            © {new Date().getFullYear()} ATELIER. Todos los derechos reservados.
+    <footer className="bg-tinta text-tinta-claro/80 w-full">
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-10 md:grid-cols-3 md:gap-12 md:px-14 md:py-16">
+        <div className="col-span-2 md:col-span-1">
+          <p className="text-tinta-claro mb-2 font-serif text-xl font-semibold md:mb-4 md:text-2xl">
+            ATELIER
+          </p>
+          <p className="text-tinta-suave max-w-xs text-xs leading-relaxed md:text-sm">
+            Moda contemporánea con esencia atemporal. Calidad y diseño en cada prenda.
           </p>
         </div>
 
+        {COLUMNAS.map(({ titulo, enlaces }) => (
+          <nav key={titulo} aria-label={titulo}>
+            <h2 className="text-tinta-apagado mb-3 text-[10px] tracking-widest uppercase md:mb-4 md:text-xs">
+              {titulo}
+            </h2>
+            <ul className="space-y-2.5 md:space-y-2">
+              {enlaces.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    className="text-tinta-claro text-sm transition-colors hover:text-white"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+
+      <div className="border-tinta-borde mx-auto max-w-7xl border-t px-6 py-6 text-center md:px-14 md:py-8">
+        <p className="text-tinta-apagado text-xs">
+          © {new Date().getFullYear()} ATELIER. Todos los derechos reservados.
+        </p>
       </div>
     </footer>
   )

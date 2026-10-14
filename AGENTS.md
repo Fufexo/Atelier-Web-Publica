@@ -2,112 +2,100 @@
 
 ## Qué es este proyecto
 
-E-commerce de ropa para el mercado peruano. Tienda pública + panel admin + checkout con pago real (Culqi). Deployed en Vercel, DB en Supabase.
+E-commerce de ropa para el mercado peruano. Tienda pública + panel admin + checkout con pago real (Culqi). Deploy en Vercel, base de datos en Supabase. La arquitectura y las decisiones están en `README.md`.
 
 ---
 
 ## Stack — versiones con breaking changes
 
-- **Next.js 16** con App Router. Leer `node_modules/next/dist/docs/` ante dudas. `generateMetadata`, `searchParams` y `params` son **Promises** — siempre `await`.
-- **React 19** — no usar patrones deprecados de React 18.
-- **Tailwind CSS v4** — sintaxis nueva, sin `tailwind.config.ts`, configuración vía `@theme` en `globals.css`.
-- **Supabase SSR** (`@supabase/ssr`) — no usar el cliente legacy `@supabase/auth-helpers-nextjs`.
-- **TypeScript strict** — no usar `any`, no ignorar errores de tipos.
+- **Next.js 16** con App Router. Ante dudas, leer `node_modules/next/dist/docs/`. `params` y `searchParams` son **Promises**: siempre `await`. Usar los helpers globales `PageProps<'/ruta'>` y `LayoutProps<'/ruta'>`.
+- El middleware se llama **`proxy.ts`** y solo corre en `/admin` y `/login`.
+- **React 19.3**: `<ViewTransition>` viene de `react` (no usar `next-view-transitions`). Preferir `useOptimistic`, `useActionState` y `useSyncExternalStore` a `useEffect` + `setState`.
+- **Tailwind CSS v4**: sin `tailwind.config.ts`; tokens en `@theme` dentro de `app/globals.css`.
+- **Supabase SSR** (`@supabase/ssr`), clientes tipados con `Database` (`lib/supabase/database.types.ts`).
+- **Zod 4** para validar todo lo que llega del cliente (formularios, API, Server Actions).
+- **TypeScript strict**: sin `any`, sin ignorar errores.
 
 ---
 
 ## Dónde vive cada cosa
 
 ```
-app/                    → Rutas (App Router)
-  admin/                → Panel admin (protegido por layout.tsx via Supabase Auth)
-  api/culqi/cobrar/     → Único API route — procesa pagos
-  login/                → Auth solo para admin
-components/
-  store/                → Componentes de la tienda pública
-  admin/                → Componentes del panel admin
-lib/
-  supabase/server.ts    → Cliente SSR (Server Components y Actions)
-  supabase/client.ts    → Cliente browser (solo en Client Components)
-  supabase/admin.ts     → Cliente service role (bypasa RLS, solo en API routes)
-  carrito.tsx           → Context + hook useCarrito
-  email.ts              → Emails con Resend (inicializar dentro de cada función, no al importar)
-  navigation.ts         → Links de nav centralizados (NAV_TIENDA, NAV_AYUDA)
-  types.ts              → Tipos globales
-  utils.ts              → formatearPrecio, generarSlug, ESTADO_PEDIDO_*
-supabase/migrations/    → Scripts SQL — NO borrar
+app/(tienda)/           → Tienda pública. El layout ya pone Navbar, Footer y <main>: las páginas no los repiten.
+app/admin/              → Panel. Cada página y Server Action llama a requireAdmin().
+app/api/culqi/cobrar/   → Único API route: valida, recalcula, cobra y registra el pedido.
+components/ui/          → Primitivas: Icon, boton(), Field, QuantityStepper, PageHeader, EmptyState
+components/store/       → Piezas de la tienda: ProductCard, ProductGrid, ResumenTotales, PaginaInfo, Reveal…
+components/admin/ui.tsx → Card, CardHeader, AdminHeader, badges de estado, inputAdmin/botonAdmin
+lib/catalogo.ts         → Consultas de la tienda (no consultar Supabase directo desde las páginas públicas)
+lib/auth.ts             → requireAdmin()
+lib/checkout/           → schema.ts (Zod, compartido) y armar-pedido.ts (puro)
+lib/carrito/            → items.ts (lógica pura) e index.ts (useCarrito, store en localStorage)
+lib/precios.ts          → IGV, totales, precioFinal, aCentimos
+lib/envios.ts           → Tarifas por distrito (única fuente: checkout y servidor)
+lib/pedidos.ts          → Estados de pedido/pago (label, colores), stock bajo
+lib/format.ts           → formatearPrecio, formatearFecha, fechas en hora de Lima, generarSlug
+lib/supabase/           → server.ts (SSR) · client.ts (browser) · admin.ts (service role, solo servidor)
+supabase/migrations/    → SQL en orden. NO borrar ni editar migraciones ya aplicadas: crear una nueva.
 ```
 
 ---
 
-## Base de datos (Supabase)
+## Base de datos
 
-Tablas principales: `perfiles`, `categorias`, `productos`, `variantes`, `pedidos`, `items_pedido`, `pagos`
+Tablas: `admins`, `perfiles`, `categorias`, `productos`, `variantes`, `pedidos`, `items_pedido`, `pagos`.
 
-- `productos` tiene: `nombre`, `slug`, `precio`, `precio_oferta`, `imagenes` (JSONB), `activo`, `destacado`, `genero`, `orden`, `categoria_id`
-- `variantes` tiene: `talla`, `color`, `stock`, `activa`
-- `pedidos` tiene: `estado` (pendiente→pagado→preparando→enviado→entregado), `direccion_envio` (JSONB)
-- Stock se descuenta via RPC `descontar_stock(p_variante_id, p_cantidad)`
+- Escritura del panel y lectura de pedidos: políticas RLS con `(select public.es_admin())`.
+- La tienda pública lee con la anon key: RLS solo deja ver lo activo.
+- Los pedidos se registran **solo** con `registrar_pedido_pagado` (service role), en una transacción.
+- Columnas JSONB (`productos.imagenes`, `pedidos.direccion_envio`): leerlas con `parsearImagenes` / `parsearDireccion` de `lib/types.ts`.
+- Después de una migración, regenerar `database.types.ts`.
 
 ---
 
-## Convenciones de código
+## Convenciones
 
-### Patrones de Supabase
-```ts
-// Server Component / Action
-const supabase = await createClient()
-
-// API Route (bypasa RLS)
-const supabase = createAdminClient()  // sin await
-```
+### Datos y seguridad
+- Nunca confiar en montos ni precios que vengan del navegador.
+- Toda Server Action: `const { supabase } = await requireAdmin()` + validar argumentos con Zod (llegan del cliente aunque el tipo diga otra cosa).
+- Devolver errores al usuario (`{ error }` o `throw`); no ignorar el `error` de Supabase.
+- Texto del usuario dentro de HTML de emails: `escaparHtml`.
+- Fechas y "hoy": hora de Lima (`lib/format.ts`), nunca la del servidor.
 
 ### Estilos
-- Fuente serif: `style={{ fontFamily: 'var(--font-noto-serif)' }}` — títulos
-- Fuente sans: `style={{ fontFamily: 'var(--font-manrope)' }}` — texto UI
-- Paleta base: `stone-900` (primario), `stone-400` (secundario), `[#f5f2ed]` (fondo tienda), `[#25211f]` (footer)
-- Breakpoints: `md` (768px) separa mobile/desktop en la tienda
+- Fuentes: `font-serif` (Playfair, títulos) y `font-sans` (Inter, por defecto en `body`). No usar `style={{ fontFamily }}`.
+- Colores de marca: `bg-papel`, `bg-crema`, `bg-lino`, `bg-tinta`, `text-tinta-claro`… (definidos en `@theme`).
+- Contraste: texto secundario `stone-500` sobre blanco, `stone-600` sobre `crema`. No usar `stone-400` para texto.
+- Botones y enlaces de acción de la tienda: `className={boton({ variante })}`.
+- Imágenes con `next/image`; íconos con `<Icon name="…" />`.
+- `md` (768px) separa móvil/escritorio en la tienda.
 
-### Componentes reutilizables clave
-- `<ProductCard prod={prod} hover={boolean} />` — card de producto, usar siempre en vez de código inline
-- `<ConfirmDeleteButton>` — para acciones destructivas en admin
-- `<ViewTransitionGuard />` — ya montado en layout, no duplicar
+### Componentes reutilizables
+- `ProductCard` / `ProductGrid` para cualquier listado de productos.
+- `ResumenTotales` para desgloses de subtotal/IGV/envío/total.
+- `PaginaInfo` para páginas de ayuda con secciones de texto.
+- `Field` para campos de formulario de la tienda (label conectado y errores accesibles).
+- `ConfirmDeleteButton` para acciones destructivas en el admin.
+- Links de navegación: `NAV_PRINCIPAL`, `NAV_TIENDA`, `NAV_AYUDA` de `lib/navigation.ts`.
 
 ### Emails
-```ts
-// CORRECTO — inicializar dentro de la función
-export async function enviarEmail() {
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  ...
-}
+Instanciar `Resend` dentro de la función, nunca a nivel de módulo (rompe el build de Vercel sin la variable).
 
-// MAL — falla en build time de Vercel
-const resend = new Resend(process.env.RESEND_API_KEY)
-```
+### Antes de terminar un cambio
+`npm run check` (lint + tipos + tests) y `npm run format`. Si tocaste lógica de `lib/`, agrega o actualiza su `*.test.ts`.
 
 ---
 
 ## Qué NO hacer
 
-- No crear páginas de auth para clientes — solo el admin tiene login
-- No usar `<img>` con dominios externos sin configurar `next.config` (usar `// eslint-disable-next-line` si es necesario por ahora)
-- No hardcodear precios en los componentes — siempre vienen de Supabase
-- No duplicar el card de producto — usar `ProductCard`
-- No duplicar los links de nav — usar `NAV_TIENDA` y `NAV_AYUDA` de `lib/navigation.ts`
-- No inicializar `Resend` a nivel de módulo
-- No borrar los archivos de `supabase/migrations/`
+- No crear páginas de auth para clientes: solo el admin tiene login.
+- No duplicar Navbar/Footer en páginas de `(tienda)`.
+- No hardcodear precios ni tarifas de envío en componentes.
+- No usar el cliente service role (`lib/supabase/admin.ts`) fuera del servidor.
+- No volver a `auth.uid() is not null` como criterio de admin.
 
 ---
 
-## Variables de entorno necesarias
+## Variables de entorno
 
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-NEXT_PUBLIC_CULQI_PUBLIC_KEY
-CULQI_SECRET_KEY
-RESEND_API_KEY
-EMAIL_ADMIN
-NEXT_PUBLIC_SITE_URL
-```
+Ver `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_CULQI_PUBLIC_KEY`, `CULQI_SECRET_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_ADMIN`, `NEXT_PUBLIC_SITE_URL`.
