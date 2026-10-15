@@ -1,5 +1,7 @@
 'use client'
 
+import BotonEnviar from './BotonEnviar'
+
 interface Props {
   action: (formData: FormData) => Promise<void>
   mensaje?: string
@@ -14,9 +16,9 @@ export default function ConfirmDeleteButton({ action, mensaje = '¿Eliminar?', c
 
   return (
     <form action={action} onSubmit={handleSubmit}>
-      <button type="submit" className={className}>
+      <BotonEnviar pendiente="Eliminando…" className={className}>
         {children}
-      </button>
+      </BotonEnviar>
     </form>
   )
 }

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
+import BotonEnviar from '@/components/admin/BotonEnviar'
 import ConfirmDeleteButton from '@/components/admin/ConfirmDeleteButton'
 import { formatearPrecio } from '@/lib/format'
 import { STOCK_BAJO } from '@/lib/pedidos'
@@ -174,15 +175,14 @@ export default function TablaProductos({ productos }: { productos: FilaProducto[
                   </td>
                   <td className="px-6 py-4">
                     <form action={toggleActivo.bind(null, p.id, p.activo)}>
-                      <button
-                        type="submit"
+                      <BotonEnviar
                         title={p.activo ? 'Click para ocultar de la tienda' : 'Click para publicar'}
                         className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-75 ${
                           p.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                         }`}
                       >
                         {p.activo ? 'Activo' : 'Inactivo'}
-                      </button>
+                      </BotonEnviar>
                     </form>
                   </td>
                   <td className="px-6 py-4">

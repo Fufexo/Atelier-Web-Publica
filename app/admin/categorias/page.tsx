@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import BotonEnviar from '@/components/admin/BotonEnviar'
 import ConfirmDeleteButton from '@/components/admin/ConfirmDeleteButton'
 import { AdminHeader, Card, CardHeader } from '@/components/admin/ui'
 import { requireAdmin } from '@/lib/auth'
@@ -44,14 +45,13 @@ export default async function CategoriasPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <form action={toggleCategoriaActiva.bind(null, cat.id, cat.activa)}>
-                    <button
-                      type="submit"
+                    <BotonEnviar
                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         cat.activa ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                       }`}
                     >
                       {cat.activa ? 'Activa' : 'Inactiva'}
-                    </button>
+                    </BotonEnviar>
                   </form>
                   <Link
                     href={`/admin/categorias/${cat.id}`}
