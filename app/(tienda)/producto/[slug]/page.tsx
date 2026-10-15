@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { getProductoPorSlug } from '@/lib/catalogo'
 import { precioFinal } from '@/lib/precios'
-import { SITE_URL } from '@/lib/site'
+import { OPEN_GRAPH_BASE, SITE_URL } from '@/lib/site'
 import ProductoDetalle from './ProductoDetalle'
 
 // generateMetadata y la página piden el mismo producto: cache() hace una sola consulta.
@@ -15,18 +15,13 @@ export async function generateMetadata({ params }: PageProps<'/producto/[slug]'>
   const prod = await getProducto(slug)
   if (!prod) return { title: 'Producto no encontrado' }
 
-  const imagen = prod.imagenes[0]
   const descripcion = prod.descripcion ?? `Compra ${prod.nombre} en ATELIER. Envíos a todo el Perú.`
   return {
     title: prod.nombre,
     description: descripcion,
     alternates: { canonical: `/producto/${slug}` },
-    openGraph: {
-      title: prod.nombre,
-      description: descripcion,
-      url: `/producto/${slug}`,
-      images: imagen ? [{ url: imagen.url, alt: imagen.alt || prod.nombre }] : undefined,
-    },
+    // La imagen la genera opengraph-image.tsx (1200×630, con nombre y precio).
+    openGraph: { ...OPEN_GRAPH_BASE, title: prod.nombre, description: descripcion, url: `/producto/${slug}` },
   }
 }
 
