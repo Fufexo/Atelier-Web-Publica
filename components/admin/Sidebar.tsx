@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/login/actions'
+import BotonEnviar from './BotonEnviar'
 import ThemeToggle from './ThemeToggle'
 
 const navLinks = [
@@ -117,8 +118,8 @@ export default function Sidebar() {
       <div className="space-y-1 border-t border-slate-700 px-3 py-4">
         <ThemeToggle />
         <form action={logout} className="mt-1">
-          <button
-            type="submit"
+          <BotonEnviar
+            pendiente="Saliendo…"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
           >
             <svg aria-hidden className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +131,7 @@ export default function Sidebar() {
               />
             </svg>
             Cerrar sesión
-          </button>
+          </BotonEnviar>
         </form>
       </div>
     </aside>

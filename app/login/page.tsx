@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import BotonEnviar from '@/components/admin/BotonEnviar'
 import { Alerta, botonAdmin, inputAdmin, labelAdmin } from '@/components/admin/ui'
 import { createClient } from '@/lib/supabase/server'
 import { login } from './actions'
@@ -55,9 +56,9 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               className={inputAdmin}
             />
           </label>
-          <button type="submit" className={`${botonAdmin} mt-2 w-full justify-center py-2.5`}>
+          <BotonEnviar pendiente="Ingresando…" className={`${botonAdmin} mt-2 w-full justify-center py-2.5`}>
             Ingresar
-          </button>
+          </BotonEnviar>
         </form>
       </div>
     </main>

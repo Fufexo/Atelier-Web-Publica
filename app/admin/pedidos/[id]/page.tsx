@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import BotonEnviar from '@/components/admin/BotonEnviar'
 import { AdminHeader, Card, CardHeader, EstadoPagoBadge, EstadoPedidoBadge } from '@/components/admin/ui'
 import { requireAdmin } from '@/lib/auth'
 import { formatearFecha, formatearPrecio, numeroPedido } from '@/lib/format'
@@ -154,8 +155,7 @@ export default async function DetallePedidoPage({ params }: PageProps<'/admin/pe
                 return (
                   <li key={e}>
                     <form action={actualizarEstadoPedido.bind(null, pedido.id, e)}>
-                      <button
-                        type="submit"
+                      <BotonEnviar
                         disabled={actual}
                         aria-current={actual ? 'true' : undefined}
                         className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-all ${
@@ -169,7 +169,7 @@ export default async function DetallePedidoPage({ params }: PageProps<'/admin/pe
                         />
                         {ESTADO_PEDIDO[e].label}
                         {actual && <span className="ml-auto text-xs text-gray-500">actual</span>}
-                      </button>
+                      </BotonEnviar>
                     </form>
                   </li>
                 )
