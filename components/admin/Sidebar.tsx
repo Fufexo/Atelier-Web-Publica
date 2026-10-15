@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 import BotonEnviar from './BotonEnviar'
@@ -79,6 +79,20 @@ const navLinks = [
   },
 ]
 
+/** Punto junto al enlace mientras su sección carga: confirma el clic al instante. */
+function IndicadorPendiente() {
+  const { pending } = useLinkStatus()
+  return (
+    <span
+      aria-hidden
+      data-pendiente={pending || undefined}
+      className={`ml-auto size-1.5 rounded-full bg-white transition-opacity ${
+        pending ? 'opacity-100 motion-safe:animate-pulse' : 'opacity-0'
+      }`}
+    />
+  )
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
 
@@ -110,6 +124,7 @@ export default function Sidebar() {
           >
             {link.icon}
             {link.label}
+            <IndicadorPendiente />
           </Link>
         ))}
       </nav>
